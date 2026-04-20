@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.9.0] — 2026-04-19
+
+### New: Hybrid BM25 + semantic search
+
+- **`search_sections` now fuses lexical and semantic scores** when the index has embeddings. New parameters match jcodemunch-mcp's shape:
+  - `semantic` — `null`/omit (auto — hybrid when embeddings exist), `true` (force hybrid), `false` (force lexical-only)
+  - `semantic_only` — skip lexical entirely, rank purely by embedding cosine
+  - `semantic_weight` — 0.0–1.0 weight of the semantic channel in fusion (default 0.5)
+- Each channel min-max-normalized to [0,1] within the candidate set, then weighted sum. When `embed_query` returns `None` (provider disabled at query time), hybrid gracefully degrades to lexical. Zero performance impact when the index has no embeddings.
+- `_meta.search_mode` now reports one of `hybrid`, `semantic_only`, or `lexical` (replacing the previous binary `semantic`/`lexical`). `_meta.semantic_weight` is surfaced on hybrid calls.
+
+### New: `use_embeddings="auto"` default
+
+- `index_local` and `doc_index_repo` now default `use_embeddings` to `"auto"` — embeddings are generated automatically whenever an embedding provider is configured (`GOOGLE_API_KEY`, `OPENAI_API_KEY`, or sentence-transformers installed). Explicit `true`/`false` still honored.
+- `index-file` now preserves embedding parity: when re-indexing a single file into an index that already has embeddings, the new sections get embedded too (previously left empty).
+
+### Tests
+
+- 16 new tests covering `should_embed` flag resolution, hybrid fusion ranking, `semantic=False` short-circuit, semantic-only, `semantic_weight=0` reduction to lexical, graceful degradation, and search_mode reporting (400 total).
+
 ## [1.8.1] — 2026-04-15
 
 ### Documentation

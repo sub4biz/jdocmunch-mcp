@@ -8,6 +8,7 @@ from typing import Optional
 from ..parser import parse_file, preprocess_content, ALL_EXTENSIONS
 from ..storage import DocStore
 from ..summarizer import summarize_sections
+from ..embeddings import embed_sections
 
 
 def _find_owning_index(
@@ -113,6 +114,10 @@ def index_file(
     # Determine if this is a new or changed file
     index = store.load_index(owner, name)
     is_new = rel_path not in (index.file_hashes if index else {})
+
+    # Preserve embedding parity: if the existing index has embeddings, embed new sections too.
+    if index is not None and index._has_embeddings():
+        new_sections = embed_sections(new_sections)
 
     # Use incremental_save to update just this file
     updated = store.incremental_save(

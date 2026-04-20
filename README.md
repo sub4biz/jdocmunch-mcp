@@ -531,7 +531,7 @@ See `SECURITY.md` for details.
 * source code symbol indexing (use [jCodeMunch](https://github.com/jgravelle/jcodemunch-mcp) for that)
 * real-time file watching
 * cross-repository global search
-* semantic/vector similarity search as a standalone product (semantic search is supported as an enhancement when embeddings are enabled via `use_embeddings=true`, but the core workflow is structure-first)
+* semantic/vector similarity search as a standalone product (hybrid BM25 + semantic fusion is supported when embeddings are enabled — defaults to `"auto"`, on whenever a provider is configured — but the core workflow remains structure-first)
 
 ---
 

@@ -1,6 +1,6 @@
 # jdocmunch-mcp
 
-**Version:** 1.8.0 | **Tests:** `pytest tests/ -q` (384 total)
+**Version:** 1.9.0 | **Tests:** `pytest tests/ -q` (400 total)
 
 ## Purpose
 Documentation section indexing for the jMunch suite. Companion to jcodemunch-mcp (which owns code symbols). Do NOT add code/docstring parsing here.
@@ -32,6 +32,6 @@ Documentation section indexing for the jMunch suite. Companion to jcodemunch-mcp
 - INDEX_VERSION=1; version mismatch triggers full re-index
 - O(1) section lookup via `DocIndex.__post_init__` id dict
 - `pyyaml>=6.0` required (hard dep)
-- Semantic search: pass `use_embeddings=True` to index_local/index_repo; search_sections auto-selects cosine-similarity if embeddings present
+- Hybrid search (v1.9.0): `search_sections` fuses BM25 + semantic cosine when embeddings exist. `use_embeddings` defaults to `"auto"` (embed when provider configured). `search_sections` params: `semantic` (None/auto, True, False), `semantic_only`, `semantic_weight` (0.0–1.0, default 0.5). `_meta.search_mode` reports `hybrid`/`semantic_only`/`lexical`.
 - Embedding providers: GOOGLE_API_KEY (Gemini, text-embedding-004) or OPENAI_API_KEY (text-embedding-3-small); override with JDOCMUNCH_EMBEDDING_PROVIDER env var
 - Summarizer providers: ANTHROPIC_API_KEY, GOOGLE_API_KEY, OPENAI_API_KEY, MINIMAX_API_KEY, ZHIPUAI_API_KEY; override with JDOCMUNCH_SUMMARIZER_PROVIDER env var (values: anthropic, gemini, openai, minimax, glm, none)

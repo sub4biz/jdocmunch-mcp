@@ -17,7 +17,7 @@ from ..security import (
 )
 from ..storage import DocStore
 from ..summarizer import summarize_sections
-from ..embeddings import embed_sections, get_provider_name
+from ..embeddings import embed_sections, get_provider_name, should_embed
 from ._constants import SKIP_PATTERNS
 
 
@@ -126,7 +126,7 @@ def index_local(
     path: str,
     name: Optional[str] = None,
     use_ai_summaries: bool = True,
-    use_embeddings: bool = False,
+    use_embeddings="auto",
     storage_path: Optional[str] = None,
     extra_ignore_patterns: Optional[list] = None,
     follow_symlinks: bool = False,
@@ -141,6 +141,9 @@ def index_local(
               name (e.g. two libraries both with a 'docs' folder). Defaults to the
               folder name.
         use_ai_summaries: Whether to use AI for section summaries.
+        use_embeddings: True/False/"auto". "auto" (default) enables embeddings when
+                        an embedding provider is configured (GOOGLE_API_KEY,
+                        OPENAI_API_KEY, or sentence-transformers installed).
         storage_path: Custom storage path (default: ~/.doc-index/).
         extra_ignore_patterns: Additional gitignore-style patterns to exclude.
         follow_symlinks: Whether to follow symlinks.
@@ -158,6 +161,7 @@ def index_local(
     if not folder_path.is_dir():
         return {"success": False, "error": f"Path is not a directory: {path}"}
 
+    use_embeddings = should_embed(use_embeddings)
     warnings = []
 
     try:

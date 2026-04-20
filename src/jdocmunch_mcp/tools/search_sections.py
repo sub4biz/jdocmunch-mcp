@@ -12,17 +12,26 @@ def search_sections(
     query: str,
     doc_path: Optional[str] = None,
     max_results: int = 10,
+    semantic: Optional[bool] = None,
+    semantic_only: bool = False,
+    semantic_weight: float = 0.5,
     storage_path: Optional[str] = None,
 ) -> dict:
-    """Search sections with weighted scoring. Returns summaries only (no content).
+    """Search sections with BM25-style lexical + optional semantic fusion.
 
-    Scoring:
+    Lexical scoring:
       title exact match:    +20
       title substring:      +10
       title word overlap:   +5 per word
       summary match:        +8 (substring), +2 per word
       tag match:            +3 per tag
       content word match:   +1 per word (capped at 5)
+
+    Params:
+      semantic:        None (auto — hybrid when embeddings exist), True (force
+                       hybrid), False (force lexical-only).
+      semantic_only:   Skip lexical; rank purely by embedding cosine similarity.
+      semantic_weight: Weight (0.0–1.0) of semantic component in hybrid fusion.
     """
     t0 = time.perf_counter()
     store = DocStore(base_path=storage_path)
@@ -32,7 +41,24 @@ def search_sections(
     if not index:
         return {"error": f"Repo not found: {repo}"}
 
-    results = index.search(query, doc_path=doc_path, max_results=max_results)
+    has_emb = index._has_embeddings()
+    if semantic_only:
+        mode = "semantic_only" if has_emb else "lexical"
+    elif semantic is False:
+        mode = "lexical"
+    elif has_emb and (semantic is True or semantic is None) and 0.0 < semantic_weight <= 1.0:
+        mode = "hybrid"
+    else:
+        mode = "lexical"
+
+    results = index.search(
+        query,
+        doc_path=doc_path,
+        max_results=max_results,
+        semantic=semantic,
+        semantic_only=semantic_only,
+        semantic_weight=semantic_weight,
+    )
 
     # Calculate token savings: matched docs full bytes vs summary-only response
     matched_doc_paths = {r.get("doc_path") for r in results}
@@ -47,15 +73,16 @@ def search_sections(
     ca = cost_avoided(tokens_saved, total)
 
     latency_ms = int((time.perf_counter() - t0) * 1000)
-    used_semantic = index._has_embeddings()
     meta = {
         "latency_ms": latency_ms,
         "sections_returned": len(results),
         "tokens_saved": tokens_saved,
-        "search_mode": "semantic" if used_semantic else "lexical",
+        "search_mode": mode,
         **ca,
     }
-    if not used_semantic:
+    if mode == "hybrid":
+        meta["semantic_weight"] = semantic_weight
+    if not has_emb and mode == "lexical":
         meta["tip"] = "Re-index with use_embeddings=True for semantic search (better recall on paraphrased queries)"
 
     return {

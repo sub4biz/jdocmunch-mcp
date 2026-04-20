@@ -57,17 +57,41 @@ class DocIndex:
         """Return True if at least some sections have embeddings stored."""
         return any(s.get("embedding") for s in self.sections)
 
-    def search(self, query: str, doc_path: Optional[str] = None, max_results: int = 10) -> list:
-        """Search sections. Uses semantic (cosine similarity) when embeddings exist,
-        otherwise falls back to weighted keyword scoring.
+    def search(
+        self,
+        query: str,
+        doc_path: Optional[str] = None,
+        max_results: int = 10,
+        semantic: Optional[bool] = None,
+        semantic_only: bool = False,
+        semantic_weight: float = 0.5,
+    ) -> list:
+        """Search sections with BM25-style lexical + optional semantic fusion.
 
-        Returns sections sorted by relevance, with content and embedding excluded.
+        Params:
+          semantic: None (auto — hybrid when embeddings exist), True (force hybrid),
+                    False (force lexical-only).
+          semantic_only: Skip lexical; rank purely by embedding cosine similarity.
+                        Implies semantic=True.
+          semantic_weight: 0.0–1.0 weight of semantic component in fusion. 0.0 =
+                          lexical-only, 1.0 = semantic-only. Default 0.5.
+
+        Returns sections sorted by relevance, with content and embedding stripped.
         """
-        if self._has_embeddings():
-            results = self._semantic_search(query, doc_path, max_results)
+        has_emb = self._has_embeddings()
+        if semantic_only:
+            return self._semantic_search(query, doc_path, max_results) if has_emb else []
+
+        want_semantic = semantic if semantic is not None else has_emb
+        if want_semantic and has_emb and 0.0 < semantic_weight <= 1.0:
+            results = self._hybrid_search(query, doc_path, max_results, semantic_weight)
             if results:
                 return results
         return self._lexical_search(query, doc_path, max_results)
+
+    @staticmethod
+    def _strip(sec: dict) -> dict:
+        return {k: v for k, v in sec.items() if k not in ("content", "embedding")}
 
     def _semantic_search(self, query: str, doc_path: Optional[str], max_results: int) -> list:
         """Cosine-similarity search using stored section embeddings."""
@@ -86,10 +110,57 @@ class DocIndex:
             scored.append((score, sec))
 
         scored.sort(key=lambda x: x[0], reverse=True)
-        return [
-            {k: v for k, v in sec.items() if k not in ("content", "embedding")}
-            for _, sec in scored[:max_results]
-        ]
+        return [self._strip(sec) for _, sec in scored[:max_results]]
+
+    def _hybrid_search(
+        self,
+        query: str,
+        doc_path: Optional[str],
+        max_results: int,
+        semantic_weight: float,
+    ) -> list:
+        """Fused lexical + semantic ranking. Each channel min-max normalized to
+        [0,1] within the candidate set, then combined as a weighted sum.
+        """
+        query_lower = query.lower()
+        query_words = set(query_lower.split())
+        query_vec = embed_query(query) if semantic_weight > 0 else None
+        if semantic_weight > 0 and query_vec is None:
+            # Embedding provider unavailable at query time — degrade to lexical.
+            return self._lexical_search(query, doc_path, max_results)
+
+        candidates = []  # list[(lex_score, sem_score, sec)]
+        for sec in self.sections:
+            if doc_path and sec.get("doc_path") != doc_path:
+                continue
+            lex = self._score_section(sec, query_lower, query_words)
+            sem = 0.0
+            sec_emb = sec.get("embedding")
+            if query_vec and sec_emb:
+                sem = cosine_similarity(query_vec, sec_emb)
+            if lex <= 0 and sem <= 0:
+                continue
+            candidates.append((lex, sem, sec))
+
+        if not candidates:
+            return []
+
+        lex_values = [c[0] for c in candidates]
+        sem_values = [c[1] for c in candidates]
+        lex_lo, lex_hi = min(lex_values), max(lex_values)
+        sem_lo, sem_hi = min(sem_values), max(sem_values)
+        lex_span = lex_hi - lex_lo or 1
+        sem_span = sem_hi - sem_lo or 1
+
+        scored = []
+        for lex, sem, sec in candidates:
+            lex_norm = (lex - lex_lo) / lex_span if lex_hi > 0 else 0.0
+            sem_norm = (sem - sem_lo) / sem_span if sem_hi > 0 else 0.0
+            combined = (1.0 - semantic_weight) * lex_norm + semantic_weight * sem_norm
+            scored.append((combined, sec))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [self._strip(sec) for _, sec in scored[:max_results]]
 
     def _lexical_search(self, query: str, doc_path: Optional[str], max_results: int) -> list:
         """Weighted keyword scoring (original algorithm)."""
@@ -105,10 +176,7 @@ class DocIndex:
                 scored.append((score, sec))
 
         scored.sort(key=lambda x: x[0], reverse=True)
-        return [
-            {k: v for k, v in sec.items() if k not in ("content", "embedding")}
-            for _, sec in scored[:max_results]
-        ]
+        return [self._strip(sec) for _, sec in scored[:max_results]]
 
     @staticmethod
     def _word_matches(word: str, text: str) -> bool:

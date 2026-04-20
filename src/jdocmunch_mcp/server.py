@@ -38,7 +38,7 @@ async def list_tools() -> list[Tool]:
     return [
         Tool(
             name="index_local",
-            description="Index a local folder containing documentation files (.md, .txt, .rst). Parses by heading hierarchy into sections for efficient retrieval. Set use_embeddings=true to enable semantic search.",
+            description="Index a local folder containing documentation files (.md, .txt, .rst). Parses by heading hierarchy into sections for efficient retrieval. Embeddings auto-enable when a provider is configured (GOOGLE_API_KEY, OPENAI_API_KEY, or sentence-transformers).",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -52,9 +52,8 @@ async def list_tools() -> list[Tool]:
                         "default": True
                     },
                     "use_embeddings": {
-                        "type": "boolean",
-                        "description": "Generate semantic embeddings for each section, enabling meaning-based search. Requires GOOGLE_API_KEY (Gemini) or OPENAI_API_KEY. Automatically activates semantic search on query.",
-                        "default": False
+                        "description": "Generate semantic embeddings for each section, enabling hybrid (BM25+semantic) search. true/false/\"auto\". \"auto\" (default) enables embeddings when an embedding provider is configured (GOOGLE_API_KEY, OPENAI_API_KEY, or sentence-transformers installed).",
+                        "default": "auto"
                     },
                     "extra_ignore_patterns": {
                         "type": "array",
@@ -86,7 +85,7 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="doc_index_repo",
-            description="Index a GitHub repository's documentation. Fetches .md/.txt files, parses sections, and saves to local storage. Set use_embeddings=true to enable semantic search.",
+            description="Index a GitHub repository's documentation. Fetches .md/.txt files, parses sections, and saves to local storage. Embeddings auto-enable when a provider is configured (GOOGLE_API_KEY, OPENAI_API_KEY, or sentence-transformers).",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -100,9 +99,8 @@ async def list_tools() -> list[Tool]:
                         "default": True
                     },
                     "use_embeddings": {
-                        "type": "boolean",
-                        "description": "Generate semantic embeddings for each section, enabling meaning-based search. Requires GOOGLE_API_KEY (Gemini) or OPENAI_API_KEY.",
-                        "default": False
+                        "description": "Generate semantic embeddings for each section. true/false/\"auto\". \"auto\" (default) enables embeddings when an embedding provider is configured.",
+                        "default": "auto"
                     },
                     "incremental": {
                         "type": "boolean",
@@ -169,7 +167,7 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="search_sections",
-            description="Search sections by relevance. Uses semantic (embedding) search when the index was built with use_embeddings=true, otherwise uses weighted keyword scoring. Returns summaries only — use get_section for full content.",
+            description="Search sections by relevance. Hybrid (BM25 lexical + semantic embedding) fusion when the index was built with use_embeddings=true; falls back to lexical-only otherwise. Returns summaries only — use get_section for full content.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -189,6 +187,20 @@ async def list_tools() -> list[Tool]:
                         "type": "integer",
                         "description": "Maximum number of results to return",
                         "default": 10
+                    },
+                    "semantic": {
+                        "type": "boolean",
+                        "description": "null/omit (auto — hybrid when embeddings exist), true (force hybrid), false (force lexical-only). Zero performance cost when the index has no embeddings."
+                    },
+                    "semantic_only": {
+                        "type": "boolean",
+                        "description": "Skip lexical scoring; rank purely by embedding cosine similarity.",
+                        "default": False
+                    },
+                    "semantic_weight": {
+                        "type": "number",
+                        "description": "Weight (0.0–1.0) of semantic component in hybrid fusion. Lexical gets 1 - weight. Default 0.5.",
+                        "default": 0.5
                     }
                 },
                 "required": ["repo", "query"]
@@ -418,7 +430,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 path=arguments["path"],
                 name=arguments.get("name"),
                 use_ai_summaries=arguments.get("use_ai_summaries", True),
-                use_embeddings=arguments.get("use_embeddings", False),
+                use_embeddings=arguments.get("use_embeddings", "auto"),
                 storage_path=storage_path,
                 extra_ignore_patterns=arguments.get("extra_ignore_patterns"),
                 follow_symlinks=arguments.get("follow_symlinks", False),
@@ -429,7 +441,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             result = await index_repo(
                 url=arguments["url"],
                 use_ai_summaries=arguments.get("use_ai_summaries", True),
-                use_embeddings=arguments.get("use_embeddings", False),
+                use_embeddings=arguments.get("use_embeddings", "auto"),
                 storage_path=storage_path,
                 incremental=arguments.get("incremental", True),
             )
@@ -457,6 +469,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 query=arguments["query"],
                 doc_path=arguments.get("doc_path"),
                 max_results=arguments.get("max_results", 10),
+                semantic=arguments.get("semantic"),
+                semantic_only=arguments.get("semantic_only", False),
+                semantic_weight=arguments.get("semantic_weight", 0.5),
                 storage_path=storage_path,
             )
         elif name == "get_section":

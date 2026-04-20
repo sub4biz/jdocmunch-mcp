@@ -216,6 +216,16 @@ def embed_sections(sections: list) -> list:
     return sections
 
 
+def should_embed(flag) -> bool:
+    """Resolve a use_embeddings flag (bool or 'auto') to a concrete bool.
+
+    'auto' → True when an embedding provider is configured, else False.
+    """
+    if isinstance(flag, str) and flag.lower() == "auto":
+        return get_provider_name() is not None
+    return bool(flag)
+
+
 def embed_query(query: str) -> Optional[list]:
     """Embed a search query. Returns None if no provider is configured."""
     provider = _get_provider()
