@@ -148,7 +148,7 @@ Each release: version bump → tests pass (`PYTHONPATH=src python -m pytest test
 
 ---
 
-### v1.14.0 — Telemetry foundation + analyze_perf
+### v1.14.0 — Telemetry foundation + analyze_perf — ✅ SHIPPED (2026-04-26)
 **Goal:** Direct port of jcodemunch v1.74.0. Without telemetry, F17 weight tuning and F8 drift detection are blind.
 
 **Components:**

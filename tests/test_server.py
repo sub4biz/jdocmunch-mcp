@@ -10,9 +10,9 @@ from jdocmunch_mcp.server import list_tools, call_tool
 
 class TestListTools:
     @pytest.mark.asyncio
-    async def test_returns_16_tools(self):
+    async def test_returns_18_tools(self):
         tools = await list_tools()
-        assert len(tools) == 16
+        assert len(tools) == 18
 
     @pytest.mark.asyncio
     async def test_tool_names(self):
@@ -24,6 +24,7 @@ class TestListTools:
             "search_sections", "get_section", "get_sections", "get_section_context", "delete_index",
             "get_broken_links", "get_doc_coverage",
             "get_backlinks", "get_stale_pages", "get_wiki_stats",
+            "analyze_perf", "get_session_stats",
         }
         assert names == expected
 
@@ -37,9 +38,15 @@ class TestListTools:
     @pytest.mark.asyncio
     async def test_required_fields_defined(self):
         tools = await list_tools()
-        # Tools that need 'repo' should have it in required
+        # Tools that need 'repo' should have it in required.
+        # Tools without arguments (e.g. doc_list_repos, analyze_perf, get_session_stats)
+        # legitimately have no 'required' clause.
+        no_repo_required = {
+            "index_local", "doc_index_repo", "doc_list_repos",
+            "analyze_perf", "get_session_stats",
+        }
         for tool in tools:
-            if tool.name not in ("index_local", "doc_index_repo", "doc_list_repos"):
+            if tool.name not in no_repo_required:
                 assert "required" in tool.inputSchema
                 assert "repo" in tool.inputSchema["required"]
 

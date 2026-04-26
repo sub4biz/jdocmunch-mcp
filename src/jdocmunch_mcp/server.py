@@ -27,6 +27,8 @@ from .tools.get_doc_coverage import get_doc_coverage
 from .tools.get_backlinks import get_backlinks
 from .tools.get_stale_pages import get_stale_pages
 from .tools.get_wiki_stats import get_wiki_stats
+from .tools.analyze_perf import analyze_perf
+from .tools.get_session_stats import get_session_stats
 
 
 server = Server("jdocmunch-mcp")
@@ -404,6 +406,39 @@ async def list_tools() -> list[Tool]:
                 "required": ["repo"]
             }
         ),
+        Tool(
+            name="analyze_perf",
+            description=(
+                "Per-tool latency analysis. window='session' reads the in-memory ring "
+                "(last 512 calls per tool — always available); window='1h'|'24h'|'7d'|'all' "
+                "reads the persistent SQLite sink at ~/.doc-index/telemetry.db (opt-in via "
+                "JDOCMUNCH_PERF_TELEMETRY=1). Returns {window, telemetry_enabled, source, "
+                "per_tool:{tool:{count,p50_ms,p95_ms,max_ms,errors,error_rate}}}."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "window": {
+                        "type": "string",
+                        "enum": ["session", "1h", "24h", "7d", "all"],
+                        "default": "session",
+                        "description": "Time window. 'session' uses the in-memory ring; longer windows require JDOCMUNCH_PERF_TELEMETRY=1."
+                    }
+                }
+            }
+        ),
+        Tool(
+            name="get_session_stats",
+            description=(
+                "Session self-monitor: returns {latency_per_tool, total_tokens_saved}. "
+                "Lightweight; reads the in-memory latency ring + persistent savings counter. "
+                "For windowed analysis use analyze_perf."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {}
+            }
+        ),
     ]
 
 
@@ -421,8 +456,19 @@ async def list_prompts() -> list:
 
 @server.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
-    """Handle tool calls."""
+    """Handle tool calls.
+
+    v1.14.0: every dispatch is timed and recorded into the per-tool latency
+    ring (and persistent SQLite sink when ``JDOCMUNCH_PERF_TELEMETRY=1``).
+    """
+    import time as _time
+    from .storage.token_tracker import record_tool_latency as _record_latency
+
     storage_path = os.environ.get("DOC_INDEX_PATH")
+
+    _t0 = _time.perf_counter()
+    _ok = True
+    _repo = arguments.get("repo") if isinstance(arguments, dict) else None
 
     try:
         if name == "index_local":
@@ -529,6 +575,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 repo=arguments["repo"],
                 storage_path=storage_path,
             )
+        elif name == "analyze_perf":
+            result = analyze_perf(
+                window=arguments.get("window", "session"),
+                storage_path=storage_path,
+            )
+        elif name == "get_session_stats":
+            result = get_session_stats(storage_path=storage_path)
         else:
             result = {"error": f"Unknown tool: {name}"}
 
@@ -554,8 +607,17 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         return [TextContent(type="text", text=json.dumps(result, separators=(',', ':')))]
 
     except Exception as e:
+        _ok = False
         print(traceback.format_exc(), file=sys.stderr)
         return [TextContent(type="text", text=json.dumps({"error": str(e)}, separators=(',', ':')))]
+    finally:
+        _record_latency(
+            tool=name,
+            duration_ms=(_time.perf_counter() - _t0) * 1000.0,
+            ok=_ok,
+            repo=_repo if isinstance(_repo, str) else None,
+            base_path=storage_path,
+        )
 
 
 async def run_server():
