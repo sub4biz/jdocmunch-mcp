@@ -236,6 +236,11 @@ async def list_tools() -> list[Tool]:
                         "enum": ["install", "debug", "explain", "api"],
                         "description": "v1.32+ — task-aware retrieval profile. install/debug/explain/api each boost a small role set so matching sections rank ahead. Explicit role= overrides."
                     },
+                    "dedupe": {
+                        "type": "boolean",
+                        "default": False,
+                        "description": "v1.34+ — collapse near-duplicate sections to a single representative based on the v1.34 cluster sidecar. _meta.deduped reports suppressed member ids."
+                    },
                     "repo_group": {
                         "type": "string",
                         "description": "v1.26+ — fan out across the named repo group (defined via define_repo_group). When set, the per-repo `repo` arg is ignored; results from each member repo are fused via RRF."
@@ -891,6 +896,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 semantic_weight=arguments.get("semantic_weight", 0.5),
                 role=arguments.get("role"),
                 profile=arguments.get("profile"),
+                dedupe=arguments.get("dedupe", False),
                 repo_group=arguments.get("repo_group"),
                 storage_path=storage_path,
             )

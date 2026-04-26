@@ -313,6 +313,14 @@ def index_local(
         except Exception:
             pass
 
+        # v1.34.0: section near-duplicate detector sidecar.
+        try:
+            from ..retrieval.dedup import write as _write_dedup
+            _write_dedup(storage_path, owner, repo_name,
+                         [s.to_dict() | {"content": getattr(s, "content", "") or ""} for s in all_sections])
+        except Exception:
+            pass
+
         # v1.29.0: opt-in autotune. Runs the v1.23 weight tuner on this
         # repo's accumulated ranking events; no-op when telemetry isn't
         # enabled. Failures swallowed.

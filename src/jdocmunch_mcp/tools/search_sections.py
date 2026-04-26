@@ -18,6 +18,7 @@ def search_sections(
     lexical_engine: str = "bm25",
     role: Optional[str] = None,
     profile: Optional[str] = None,
+    dedupe: bool = False,
     repo_group: Optional[str] = None,
     storage_path: Optional[str] = None,
 ) -> dict:
@@ -169,6 +170,27 @@ def search_sections(
     except ValueError as exc:
         return {"error": str(exc), "_meta": {"lexical_engine": lexical_engine}}
 
+    # v1.34.0: optional dedup pass — collapse cluster members to their
+    # representative; record suppressed members for transparency. Runs
+    # BEFORE role/profile filtering so the limit math stays right.
+    deduped_map: dict[str, list[str]] = {}
+    if dedupe:
+        from ..retrieval.dedup import build_member_to_rep, load as _load_dupes
+        clusters = _load_dupes(storage_path, owner, name)
+        if clusters:
+            mem_to_rep = build_member_to_rep(clusters)
+            seen_reps: set[str] = set()
+            kept = []
+            for r in results:
+                sid = r.get("id", "")
+                rep = mem_to_rep.get(sid, sid)
+                if rep in seen_reps:
+                    deduped_map.setdefault(rep, []).append(sid)
+                    continue
+                seen_reps.add(rep)
+                kept.append(r)
+            results = kept
+
     if role:
         role_norm = role.strip().lower()
         results = [r for r in results
@@ -225,6 +247,10 @@ def search_sections(
     if profile_norm:
         meta["profile"] = profile_norm
         meta["profile_boost_roles"] = sorted(profile_def["boost_roles"])
+    if dedupe:
+        meta["dedupe"] = True
+        if deduped_map:
+            meta["deduped"] = deduped_map
     attach_confidence(query, results, meta)
 
     # v1.33.0: per-result answerability + quotability scores. Read content

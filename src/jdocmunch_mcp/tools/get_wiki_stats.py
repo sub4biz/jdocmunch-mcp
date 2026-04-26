@@ -94,6 +94,19 @@ def get_wiki_stats(
 
     counts = list(doc_section_counts.values()) if doc_section_counts else [0]
 
+    # v1.34.0: surface persisted near-duplicate clusters when present.
+    duplicate_clusters: list = []
+    duplicate_section_count = 0
+    try:
+        from ..retrieval.dedup import load as _load_dupes
+        duplicate_clusters = _load_dupes(storage_path, owner, name)
+        # Each cluster of N members has N-1 "redundant" sections.
+        duplicate_section_count = sum(
+            max(0, len(c.get("member_ids") or []) - 1) for c in duplicate_clusters
+        )
+    except Exception:
+        duplicate_clusters = []
+
     return {
         "result": {
             "repo": f"{owner}/{name}",
@@ -110,6 +123,9 @@ def get_wiki_stats(
                 "max": max(counts),
                 "avg": round(sum(counts) / len(counts), 1),
             },
+            "duplicate_cluster_count": len(duplicate_clusters),
+            "duplicate_section_count": duplicate_section_count,
+            "duplicate_clusters": duplicate_clusters,
         },
         "_meta": {
             "timing_ms": round((time.perf_counter() - t0) * 1000, 1),
