@@ -2,8 +2,20 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.41.0)
-**Status:** v1.10.0–v1.41.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.42.0)
+**Status:** v1.10.0–v1.42.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.42.0 — search_sections quality filters — ✅ SHIPPED (2026-04-26)
+**Goal:** Cut noise from search results. New `min_answerability` and `min_quotability` filters on `search_sections` drop results below the v1.33 per-result quality thresholds. Pure additive — defaults None mean no filter.
+
+**Deliverables:**
+- `min_answerability: Optional[float]` and `min_quotability: Optional[float]` args wired through Python signature, schema, and dispatch.
+- Filter applies after `attach_scores` so the per-result fields are populated. Sections with non-numeric scores are dropped (treated as below any threshold).
+- `_meta.min_answerability` / `_meta.min_quotability` echoed when set; `_meta.quality_filtered` reports drop count.
+- 7 tests in `tests/test_v1_42_0.py` covering default-off, threshold semantics, edge cases (0.0 keeps all, >1 drops all), schema parity.
+
+**Replay gate:** all 7 fixtures pass at 1.0 nDCG/MRR/Recall vs v1.41.0.
+**Tests:** 971 → 978 (+7).
 
 ### v1.41.0 — get_section_excerpt content preview — ✅ SHIPPED (2026-04-26)
 **Goal:** Cheap content peek between handle-only metadata and full byte-range read. New `get_section_excerpt` returns title + first N bytes of content (default 500). Truncation is UTF-8 char-boundary safe and trims to last newline before the cap so the excerpt ends on a paragraph boundary. Truncated content gets a `…` marker; `_meta.tokens_saved` reports byte savings vs full content.

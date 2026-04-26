@@ -21,6 +21,8 @@ def search_sections(
     profile: Optional[str] = None,
     dedupe: bool = False,
     repo_group: Optional[str] = None,
+    min_answerability: Optional[float] = None,
+    min_quotability: Optional[float] = None,
     storage_path: Optional[str] = None,
 ) -> dict:
     """Search sections with BM25-style lexical + optional semantic fusion.
@@ -282,6 +284,37 @@ def search_sections(
             attach_scores(row, text_loader=_loader, query=query)
     except Exception:
         pass
+
+    # v1.42.0: optional answerability/quotability gates. Applied after
+    # attach_scores so the per-result fields are available. Sections
+    # whose loader returned empty text get _answerability=0/quotability=0
+    # via attach_scores; we honor that by filtering them out too when a
+    # threshold is set.
+    quality_filtered = 0
+    if min_answerability is not None or min_quotability is not None:
+        kept = []
+        for row in results:
+            ans = row.get("_answerability")
+            quo = row.get("_quotability")
+            if min_answerability is not None and (
+                not isinstance(ans, (int, float)) or ans < min_answerability
+            ):
+                quality_filtered += 1
+                continue
+            if min_quotability is not None and (
+                not isinstance(quo, (int, float)) or quo < min_quotability
+            ):
+                quality_filtered += 1
+                continue
+            kept.append(row)
+        results = kept
+        meta["sections_returned"] = len(results)
+        if min_answerability is not None:
+            meta["min_answerability"] = float(min_answerability)
+        if min_quotability is not None:
+            meta["min_quotability"] = float(min_quotability)
+        if quality_filtered:
+            meta["quality_filtered"] = quality_filtered
 
     # v1.23.0: append a ranking event for offline tuning.
     try:

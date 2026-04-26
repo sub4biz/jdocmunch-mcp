@@ -258,6 +258,14 @@ async def list_tools() -> list[Tool]:
                         "default": False,
                         "description": "v1.34+ — collapse near-duplicate sections to a single representative based on the v1.34 cluster sidecar. _meta.deduped reports suppressed member ids."
                     },
+                    "min_answerability": {
+                        "type": "number",
+                        "description": "v1.42+ — drop results whose v1.33 _answerability score is below this threshold (0–1). _meta.quality_filtered reports drop count."
+                    },
+                    "min_quotability": {
+                        "type": "number",
+                        "description": "v1.42+ — drop results whose v1.33 _quotability score is below this threshold (0–1). Stacks with min_answerability."
+                    },
                     "repo_group": {
                         "type": "string",
                         "description": "v1.26+ — fan out across the named repo group (defined via define_repo_group). When set, the per-repo `repo` arg is ignored; results from each member repo are fused via RRF."
@@ -1024,6 +1032,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 profile=arguments.get("profile"),
                 dedupe=arguments.get("dedupe", False),
                 repo_group=arguments.get("repo_group"),
+                min_answerability=arguments.get("min_answerability"),
+                min_quotability=arguments.get("min_quotability"),
                 storage_path=storage_path,
             )
         elif name == "get_section":
