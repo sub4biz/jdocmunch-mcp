@@ -38,6 +38,7 @@ from .tools.openapi_tools import (
     find_operations_using_schema,
     get_schema_graph,
 )
+from .tools.glossary_tools import lookup_term, list_terms
 
 
 server = Server("jdocmunch-mcp")
@@ -212,6 +213,10 @@ async def list_tools() -> list[Tool]:
                         "type": "number",
                         "description": "Weight (0.0–1.0) of semantic component in hybrid fusion. Lexical gets 1 - weight. Default 0.5.",
                         "default": 0.5
+                    },
+                    "role": {
+                        "type": "string",
+                        "description": "Optional v1.19+ role filter. Values: concept, tutorial, how_to, reference, api, example, troubleshooting, changelog, faq, other."
                     }
                 },
                 "required": ["repo", "query"]
@@ -554,6 +559,38 @@ async def list_tools() -> list[Tool]:
             }
         ),
         Tool(
+            name="lookup_term",
+            description=(
+                "Glossary lookup. Returns every entry whose term equals the query (case-"
+                "insensitive, exact). Glossary entries are extracted at index time from "
+                "**Term** — definition Markdown patterns and RST .. glossary:: blocks."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string"},
+                    "term": {"type": "string"}
+                },
+                "required": ["repo", "term"]
+            }
+        ),
+        Tool(
+            name="list_terms",
+            description=(
+                "List glossary terms in alphabetical order, optionally filtered by prefix. "
+                "Capped at max_results (default 100)."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string"},
+                    "prefix": {"type": "string"},
+                    "max_results": {"type": "integer", "default": 100}
+                },
+                "required": ["repo"]
+            }
+        ),
+        Tool(
             name="check_embedding_drift",
             description=(
                 "Embedding-drift canary. Without args, re-embeds the saved CANARY_STRINGS "
@@ -662,6 +699,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 semantic=arguments.get("semantic"),
                 semantic_only=arguments.get("semantic_only", False),
                 semantic_weight=arguments.get("semantic_weight", 0.5),
+                role=arguments.get("role"),
                 storage_path=storage_path,
             )
         elif name == "get_section":
@@ -774,6 +812,19 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 repo=arguments["repo"],
                 schema_name=arguments["schema_name"],
                 max_depth=arguments.get("max_depth", 5),
+                storage_path=storage_path,
+            )
+        elif name == "lookup_term":
+            result = lookup_term(
+                repo=arguments["repo"],
+                term=arguments["term"],
+                storage_path=storage_path,
+            )
+        elif name == "list_terms":
+            result = list_terms(
+                repo=arguments["repo"],
+                prefix=arguments.get("prefix"),
+                max_results=arguments.get("max_results", 100),
                 storage_path=storage_path,
             )
         else:

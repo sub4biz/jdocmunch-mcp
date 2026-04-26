@@ -8,6 +8,8 @@ from typing import Optional
 import pathspec
 
 from ..parser import parse_file, preprocess_content, ALL_EXTENSIONS
+from ..retrieval.roles import annotate_sections as _annotate_roles
+from ..retrieval.glossary import extract_glossary, write_terms
 from ..security import (
     validate_path,
     is_symlink_escape,
@@ -231,6 +233,7 @@ def index_local(
                     warnings.append(f"Failed to parse {rel_path}: {e}")
 
             new_sections = summarize_sections(new_sections, use_ai=use_ai_summaries)
+            _annotate_roles(new_sections)
             if use_embeddings:
                 new_sections = embed_sections(
                     new_sections,
@@ -281,11 +284,19 @@ def index_local(
             return {"success": False, "error": "No sections extracted from files"}
 
         all_sections = summarize_sections(all_sections, use_ai=use_ai_summaries)
+        _annotate_roles(all_sections)
         if use_embeddings:
             all_sections = embed_sections(
                 all_sections,
                 owner=owner, name=repo_name, storage_path=storage_path,
             )
+
+        # v1.19.0: glossary sidecar built from final section content.
+        try:
+            entries = extract_glossary(all_sections)
+            write_terms(storage_path, owner, repo_name, entries)
+        except Exception:
+            pass  # glossary is best-effort; never fail indexing
 
         saved = store.save_index(
             owner=owner,

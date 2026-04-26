@@ -16,6 +16,7 @@ def search_sections(
     semantic_only: bool = False,
     semantic_weight: float = 0.5,
     lexical_engine: str = "bm25",
+    role: Optional[str] = None,
     storage_path: Optional[str] = None,
 ) -> dict:
     """Search sections with BM25-style lexical + optional semantic fusion.
@@ -52,15 +53,25 @@ def search_sections(
     else:
         mode = "lexical"
 
+    # v1.19.0: when a role filter is requested, ask for more candidates
+    # up-front so post-filter trimming doesn't starve the result set.
+    fetch_n = max_results * 5 if role else max_results
     results = index.search(
         query,
         doc_path=doc_path,
-        max_results=max_results,
+        max_results=fetch_n,
         semantic=semantic,
         semantic_only=semantic_only,
         semantic_weight=semantic_weight,
         lexical_engine=lexical_engine,
     )
+
+    if role:
+        role_norm = role.strip().lower()
+        results = [r for r in results
+                   if (r.get("metadata") or {}).get("role") == role_norm][:max_results]
+    else:
+        results = results[:max_results]
 
     # v1.16.0: per-section freshness + retrieval confidence.
     from ..retrieval.freshness import FreshnessProbe
@@ -95,6 +106,8 @@ def search_sections(
         meta["semantic_weight"] = semantic_weight
     meta["lexical_engine"] = lexical_engine
     meta["freshness"] = freshness_summary
+    if role:
+        meta["role_filter"] = role.strip().lower()
     attach_confidence(query, results, meta)
     if not has_emb and mode == "lexical":
         meta["tip"] = "Re-index with use_embeddings=True for semantic search (better recall on paraphrased queries)"

@@ -10,9 +10,9 @@ from jdocmunch_mcp.server import list_tools, call_tool
 
 class TestListTools:
     @pytest.mark.asyncio
-    async def test_returns_25_tools(self):
+    async def test_returns_27_tools(self):
         tools = await list_tools()
-        assert len(tools) == 25
+        assert len(tools) == 27
 
     @pytest.mark.asyncio
     async def test_tool_names(self):
@@ -27,6 +27,7 @@ class TestListTools:
             "analyze_perf", "get_session_stats", "check_embedding_drift",
             "find_code_examples", "link_code_to_symbols",
             "find_endpoint", "list_endpoints_by_tag", "find_operations_using_schema", "get_schema_graph",
+            "lookup_term", "list_terms",
         }
         assert names == expected
 
@@ -46,7 +47,7 @@ class TestListTools:
         no_repo_required = {
             "index_local", "doc_index_repo", "doc_list_repos",
             "analyze_perf", "get_session_stats", "check_embedding_drift",
-            # find_code_examples + link_code_to_symbols + all v1.18 OpenAPI tools require repo
+            # find_code_examples + link_code_to_symbols + v1.18 OpenAPI tools + lookup_term/list_terms all require repo
         }
         for tool in tools:
             if tool.name not in no_repo_required:

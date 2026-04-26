@@ -272,7 +272,7 @@ Each release: version bump → tests pass (`PYTHONPATH=src python -m pytest test
 
 ---
 
-### v1.19.0 — Section role classification + glossary
+### v1.19.0 — Section role classification + glossary — ✅ SHIPPED (2026-04-26)
 **Goal:** Task-aware retrieval profiles ("show troubleshooting near 'connection refused'").
 
 **Role classifier (`retrieval/roles.py`):**
