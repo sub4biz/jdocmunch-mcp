@@ -116,7 +116,7 @@ Each release: version bump → tests pass (`PYTHONPATH=src python -m pytest test
 
 ---
 
-### v1.12.0 — True BM25-Okapi with field weighting
+### v1.12.0 — True BM25-Okapi with field weighting — ✅ SHIPPED (2026-04-26)
 **Goal:** Replace `_score_section` heuristic with a real lexical engine.
 
 **Design:**

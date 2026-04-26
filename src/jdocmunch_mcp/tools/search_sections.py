@@ -15,6 +15,7 @@ def search_sections(
     semantic: Optional[bool] = None,
     semantic_only: bool = False,
     semantic_weight: float = 0.5,
+    lexical_engine: str = "bm25",
     storage_path: Optional[str] = None,
 ) -> dict:
     """Search sections with BM25-style lexical + optional semantic fusion.
@@ -58,6 +59,7 @@ def search_sections(
         semantic=semantic,
         semantic_only=semantic_only,
         semantic_weight=semantic_weight,
+        lexical_engine=lexical_engine,
     )
 
     # Calculate token savings: matched docs full bytes vs summary-only response
@@ -82,6 +84,7 @@ def search_sections(
     }
     if mode == "hybrid":
         meta["semantic_weight"] = semantic_weight
+    meta["lexical_engine"] = lexical_engine
     if not has_emb and mode == "lexical":
         meta["tip"] = "Re-index with use_embeddings=True for semantic search (better recall on paraphrased queries)"
 

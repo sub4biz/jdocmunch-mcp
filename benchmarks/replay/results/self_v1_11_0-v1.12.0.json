@@ -1,6 +1,6 @@
 {
   "fixture": "self_v1_11_0",
-  "version": "1.11.0",
+  "version": "1.12.0",
   "captured_at": "2026-04-26T15:32:19Z",
   "n_queries": 10,
   "aggregates": {
@@ -169,6 +169,5 @@
       "mrr": 1.0,
       "recall": 1.0
     }
-  ],
-  "note": "Re-baselined at v1.12.0 against the BM25 default engine. Original v1.11.0 baseline (under legacy scorer) achieved identical 1.0/1.0/1.0 with single-answer goldens."
+  ]
 }

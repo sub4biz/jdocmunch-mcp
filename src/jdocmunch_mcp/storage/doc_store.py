@@ -63,6 +63,9 @@ class DocIndex:
     index_version: int = INDEX_VERSION
     file_hashes: dict = field(default_factory=dict)
     head_sha: Optional[str] = None
+    # v1.12.0: BM25 corpus stats. Empty dict for legacy indices — score_section
+    # gracefully degrades when stats are missing.
+    bm25_stats: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         # Build O(1) lookup dict once at load time
@@ -117,9 +120,11 @@ class DocIndex:
         semantic: Optional[bool] = None,
         semantic_only: bool = False,
         semantic_weight: float = 0.5,
+        lexical_engine: str = "bm25",
     ) -> list:
         # Per-call content cache — bounded scope keeps memory predictable.
         self._content_cache = {}
+        self._lexical_engine = lexical_engine
         """Search sections with BM25-style lexical + optional semantic fusion.
 
         Params:
@@ -240,9 +245,38 @@ class DocIndex:
         # prefix match: "authenticat" hits "authentication"
         return any(t.startswith(word) for t in text.split() if len(word) >= 3)
 
-    def _score_section(self, sec: dict, query_lower: str, query_words: set) -> int:
-        score = 0
+    def _score_section(self, sec: dict, query_lower: str, query_words: set) -> float:
+        """Dispatch to BM25 (v1.12 default) or the legacy heuristic.
 
+        ``self._lexical_engine`` is set per-search call; default is "bm25".
+        Tags add a small kicker on top of either engine — preserves the v1.0
+        behavior that exact tag matches help.
+        """
+        engine = getattr(self, "_lexical_engine", "bm25")
+
+        if engine == "bm25":
+            from ..retrieval.bm25 import score_section as _bm25_score
+
+            # Provide the loader so BM25 can lazily fetch content for the
+            # content channel.
+            def _loader(doc_path: str, byte_start: int, byte_end: int) -> str:
+                fake = {"content": "", "doc_path": doc_path, "byte_start": byte_start, "byte_end": byte_end, "id": sec.get("id", "")}
+                return self._ensure_content(fake)
+
+            score = _bm25_score(
+                sec,
+                query_lower,
+                stats=self.bm25_stats or None,
+                content_loader=_loader,
+            )
+            tags = sec.get("tags", [])
+            if tags and query_words:
+                tag_hits = sum(1 for t in tags if t.lower() in query_words)
+                score += 0.5 * tag_hits
+            return score
+
+        # Legacy v1.0–v1.11 heuristic. Kept until v2.0.0 for opt-in fallback.
+        score = 0
         title_lower = sec.get("title", "").lower()
         if query_lower == title_lower:
             score += 20
@@ -264,11 +298,6 @@ class DocIndex:
             if tag.lower() in query_words:
                 score += 3
 
-        # Cheap title/summary prune before paying for content load (B1).
-        cheap_score = score
-        if cheap_score == 0 and not any(self._word_matches(w, title_lower) or self._word_matches(w, summary_lower) for w in query_words):
-            # Still allow content-only matches to score; load lazily.
-            pass
         content_lower = self._ensure_content(sec).lower()
         word_hits = sum(1 for w in query_words if self._word_matches(w, content_lower))
         score += min(word_hits, 5)
@@ -332,6 +361,11 @@ class DocStore:
 
         doc_paths = sorted(raw_files.keys())
 
+        # Compute BM25 corpus stats from the in-memory Section objects (which
+        # carry full content) before to_dict() drops it.
+        from ..retrieval.bm25 import compute_corpus_stats
+        bm25_stats = compute_corpus_stats(sections)
+
         index = DocIndex(
             repo=f"{owner}/{name}",
             owner=owner,
@@ -343,6 +377,7 @@ class DocStore:
             index_version=INDEX_VERSION,
             file_hashes=file_hashes,
             head_sha=head_sha,
+            bm25_stats=bm25_stats,
         )
 
         index_path = self._index_path(owner, name)
@@ -398,6 +433,7 @@ class DocStore:
             index_version=stored_version,
             file_hashes=data.get("file_hashes", {}),
             head_sha=data.get("head_sha"),
+            bm25_stats=data.get("bm25_stats", {}),
         )
 
         # Inject lazy content loader so search can score on body text (B1).
@@ -506,6 +542,35 @@ class DocStore:
         for fp, content in raw_files.items():
             file_hashes[fp] = _file_hash(content)
 
+        # Recompute BM25 stats. Kept sections come from the loaded index
+        # (no inline content); pass a content_loader so the stats reflect
+        # body text, then merge in the new in-memory Section objects.
+        from ..retrieval.bm25 import compute_corpus_stats
+
+        # Reuse the index's content loader (set up at load_index time) so
+        # kept sections can be byte-range-read for stats. New raw files
+        # haven't been flushed to disk yet, so we shadow them via an
+        # in-memory map first.
+        kept_loader = getattr(index, "_content_loader", None)
+        new_raw_map = dict(raw_files)
+
+        def _stats_loader(doc_path: str, byte_start: int, byte_end: int) -> str:
+            buf = new_raw_map.get(doc_path)
+            if buf is not None and byte_end > byte_start:
+                return buf[byte_start:byte_end]
+            if kept_loader:
+                return kept_loader(doc_path, byte_start, byte_end) or ""
+            return ""
+
+        # Inline content for the new tail so compute_corpus_stats doesn't
+        # need to re-read disk for them; kept sections fall through to the
+        # _stats_loader byte-range read.
+        merged_for_stats = list(kept_sections) + [
+            {**s.to_dict(), "content": (getattr(s, "content", "") or "")}
+            for s in new_sections
+        ]
+        bm25_stats = compute_corpus_stats(merged_for_stats, content_loader=_stats_loader)
+
         updated = DocIndex(
             repo=f"{owner}/{name}",
             owner=owner,
@@ -517,6 +582,7 @@ class DocStore:
             index_version=INDEX_VERSION,
             file_hashes=file_hashes,
             head_sha=head_sha,
+            bm25_stats=bm25_stats,
         )
 
         # Save atomically
@@ -624,6 +690,8 @@ class DocStore:
         }
         if index.head_sha:
             d["head_sha"] = index.head_sha
+        if index.bm25_stats:
+            d["bm25_stats"] = index.bm25_stats
         return d
 
     def _resolve_repo(self, repo: str) -> tuple:

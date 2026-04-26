@@ -72,6 +72,7 @@ def _index_fixture_repo(fixture: dict, storage_path: str) -> None:
 
     repo_path = fixture["repo_path"]
     name = fixture.get("repo_id", "").split("/", 1)[-1] or None
+    extra_ignore = fixture.get("extra_ignore_patterns") or None
 
     result = index_local(
         path=repo_path,
@@ -80,12 +81,13 @@ def _index_fixture_repo(fixture: dict, storage_path: str) -> None:
         use_embeddings=False,
         storage_path=storage_path,
         incremental=False,
+        extra_ignore_patterns=extra_ignore,
     )
     if not result.get("success"):
         raise RuntimeError(f"indexing failed for fixture {fixture['name']}: {result}")
 
 
-def _run_query(repo_id: str, query: str, k: int, storage_path: str) -> list[str]:
+def _run_query(repo_id: str, query: str, k: int, storage_path: str, lexical_engine: str = "bm25") -> list[str]:
     from jdocmunch_mcp.tools.search_sections import search_sections
 
     out = search_sections(
@@ -93,6 +95,7 @@ def _run_query(repo_id: str, query: str, k: int, storage_path: str) -> list[str]
         query=query,
         max_results=max(k, 10),
         semantic=False,
+        lexical_engine=lexical_engine,
         storage_path=storage_path,
     )
     if "results" not in out:
@@ -106,6 +109,7 @@ def run_fixture(
     baseline: Optional[str] = None,
     gate: float = 0.02,
     write_results: bool = False,
+    lexical_engine: str = "bm25",
 ) -> dict:
     from .metrics import aggregate, mrr_at_k, ndcg_at_k, recall_at_k
 
@@ -121,7 +125,7 @@ def run_fixture(
         for q in queries:
             k = int(q.get("k", 5))
             predicted = _run_query(
-                fixture["repo_id"], q["query"], k=max(k, 10), storage_path=storage_path
+                fixture["repo_id"], q["query"], k=max(k, 10), storage_path=storage_path, lexical_engine=lexical_engine,
             )
             expected = q.get("expected_top_k", [])
             per_query.append(
@@ -188,6 +192,7 @@ def main(argv=None) -> int:
     parser.add_argument("--baseline", help="baseline version (e.g. 1.10.0) for gate comparison")
     parser.add_argument("--gate", type=float, default=0.02, help="max allowed metric drop (default 0.02)")
     parser.add_argument("--write-results", action="store_true", help="persist report under results/")
+    parser.add_argument("--engine", choices=["bm25", "legacy"], default="bm25", help="lexical engine to use")
     args = parser.parse_args(argv)
 
     report = run_fixture(
@@ -195,6 +200,7 @@ def main(argv=None) -> int:
         baseline=args.baseline,
         gate=args.gate,
         write_results=args.write_results,
+        lexical_engine=args.engine,
     )
 
     print(json.dumps(report, indent=2))

@@ -189,7 +189,7 @@ class TestGate:
         )
         try:
             # Stub _run_query to return zero matches so the live aggregates collapse.
-            monkeypatch.setattr(run_replay, "_run_query", lambda repo, q, k, storage_path: ["nope"])
+            monkeypatch.setattr(run_replay, "_run_query", lambda *a, **kw: ["nope"])
             report = run_replay.run_fixture(
                 "self_v1_11_0",
                 baseline="9.99.99",
