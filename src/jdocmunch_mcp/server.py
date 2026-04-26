@@ -42,6 +42,8 @@ from .tools.glossary_tools import lookup_term, list_terms
 from .tools.get_related_sections import get_related_sections
 from .tools.get_section_diff import get_section_diff
 from .tools.get_doc_health import get_doc_health
+from .tools.get_tutorial_path import get_tutorial_path
+from .tools.get_undocumented_symbols import get_undocumented_symbols
 
 
 server = Server("jdocmunch-mcp")
@@ -651,6 +653,41 @@ async def list_tools() -> list[Tool]:
             }
         ),
         Tool(
+            name="get_tutorial_path",
+            description=(
+                "Reconstruct an ordered tutorial chain starting from section_id. Detects "
+                "frontmatter next:/prev: keys, inline 'Next:' / 'Previous:' markdown links, "
+                "or ordered numeric filename prefixes (01-intro.md). Returns chain[] of "
+                "{section_id, doc_path, title} plus the strategy used."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string"},
+                    "section_id": {"type": "string"}
+                },
+                "required": ["repo", "section_id"]
+            }
+        ),
+        Tool(
+            name="get_undocumented_symbols",
+            description=(
+                "Best-effort inverse coverage: enumerate symbols in the jcodemunch code_repo "
+                "and return those whose name (or qualified name) does not appear anywhere in "
+                "this doc index. _meta.bridge_available=false when jcodemunch-mcp is not "
+                "importable in this environment."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string"},
+                    "code_repo": {"type": "string"},
+                    "max_symbols": {"type": "integer", "default": 1000}
+                },
+                "required": ["repo", "code_repo"]
+            }
+        ),
+        Tool(
             name="check_embedding_drift",
             description=(
                 "Embedding-drift canary. Without args, re-embeds the saved CANARY_STRINGS "
@@ -907,6 +944,19 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         elif name == "get_doc_health":
             result = get_doc_health(
                 repo=arguments["repo"],
+                storage_path=storage_path,
+            )
+        elif name == "get_tutorial_path":
+            result = get_tutorial_path(
+                repo=arguments["repo"],
+                section_id=arguments["section_id"],
+                storage_path=storage_path,
+            )
+        elif name == "get_undocumented_symbols":
+            result = get_undocumented_symbols(
+                repo=arguments["repo"],
+                code_repo=arguments["code_repo"],
+                max_symbols=arguments.get("max_symbols", 1000),
                 storage_path=storage_path,
             )
         else:

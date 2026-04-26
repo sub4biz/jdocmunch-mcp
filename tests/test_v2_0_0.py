@@ -366,8 +366,9 @@ class TestServerRegistration:
         for n in ("get_related_sections", "get_section_diff", "get_doc_health"):
             assert n in names, f"{n} not registered"
 
-    def test_total_count_is_30(self):
+    def test_total_count_at_least_30(self):
+        # v1.20.0 introduced the 30-tool count; later minors only add tools.
         import asyncio
         from jdocmunch_mcp import server as srv
         tools = asyncio.run(srv.list_tools())
-        assert len(tools) == 30
+        assert len(tools) >= 30

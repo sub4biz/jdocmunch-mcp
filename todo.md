@@ -343,7 +343,7 @@ Everything from the original "v2.0.0 capstone bundle" that can be re-engineered 
 - `benchmarks/replay/fixtures/notebook_realworld.json` — small Jupyter book slice.
 - All locked at v1.21.0 baselines. CI gate extended to fail on any of them.
 
-### v1.22.0 — Tutorial path + inverse coverage tools
+### v1.22.0 — Tutorial path + inverse coverage tools — ✅ SHIPPED (2026-04-26)
 **Goal:** Two pure-additive MCP tools that complete the navigation surface.
 
 - `get_tutorial_path(repo, start_section_id)` — detects `Next:` / `Previous:` links, frontmatter `next:` / `prev:`, ordered file naming (`01-intro.md`); returns ordered section IDs.
