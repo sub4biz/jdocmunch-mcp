@@ -23,6 +23,8 @@ def search_sections(
     repo_group: Optional[str] = None,
     min_answerability: Optional[float] = None,
     min_quotability: Optional[float] = None,
+    min_level: Optional[int] = None,
+    max_level: Optional[int] = None,
     storage_path: Optional[str] = None,
 ) -> dict:
     """Search sections with BM25-style lexical + optional semantic fusion.
@@ -182,6 +184,21 @@ def search_sections(
         results = [r for r in results
                    if fnmatch.fnmatch(r.get("doc_path", ""), path_glob)]
 
+    # v1.44.0: optional heading-level range filter. Restricts results
+    # to sections whose `level` falls within [min_level, max_level].
+    # min/max are inclusive; either may be omitted independently.
+    if min_level is not None or max_level is not None:
+        def _in_range(r: dict) -> bool:
+            lvl = r.get("level")
+            if not isinstance(lvl, int):
+                return False
+            if min_level is not None and lvl < min_level:
+                return False
+            if max_level is not None and lvl > max_level:
+                return False
+            return True
+        results = [r for r in results if _in_range(r)]
+
     # v1.34.0: optional dedup pass — collapse cluster members to their
     # representative; record suppressed members for transparency. Runs
     # BEFORE role/profile filtering so the limit math stays right.
@@ -265,6 +282,10 @@ def search_sections(
             meta["deduped"] = deduped_map
     if path_glob:
         meta["path_glob"] = path_glob
+    if min_level is not None:
+        meta["min_level"] = int(min_level)
+    if max_level is not None:
+        meta["max_level"] = int(max_level)
     attach_confidence(query, results, meta)
 
     # v1.33.0: per-result answerability + quotability scores. Read content

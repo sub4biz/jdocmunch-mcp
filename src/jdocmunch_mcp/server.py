@@ -267,6 +267,16 @@ async def list_tools() -> list[Tool]:
                         "type": "number",
                         "description": "v1.42+ — drop results whose v1.33 _quotability score is below this threshold (0–1). Stacks with min_answerability."
                     },
+                    "min_level": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "v1.44+ — restrict to sections at heading level >= this. Inclusive."
+                    },
+                    "max_level": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "v1.44+ — restrict to sections at heading level <= this. Inclusive. Stacks with min_level."
+                    },
                     "repo_group": {
                         "type": "string",
                         "description": "v1.26+ — fan out across the named repo group (defined via define_repo_group). When set, the per-repo `repo` arg is ignored; results from each member repo are fused via RRF."
@@ -1058,6 +1068,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 repo_group=arguments.get("repo_group"),
                 min_answerability=arguments.get("min_answerability"),
                 min_quotability=arguments.get("min_quotability"),
+                min_level=arguments.get("min_level"),
+                max_level=arguments.get("max_level"),
                 storage_path=storage_path,
             )
         elif name == "get_section":
