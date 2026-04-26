@@ -2,8 +2,22 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.38.0)
-**Status:** v1.10.0–v1.38.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.39.0)
+**Status:** v1.10.0–v1.39.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.39.0 — get_orphan_sections doc-rot finder — ✅ SHIPPED (2026-04-26)
+**Goal:** Surface sections nobody links to. Inverts the link graph once and reports every section whose `doc_path` receives zero inbound references from any other doc. Companion to `get_broken_links` (links pointing nowhere) and `get_stale_pages` (sections drifting from source) — together the doc-health triad.
+
+**Deliverables:**
+- New `tools/get_orphan_sections.py`. Optional `include_same_doc` flag toggles whether intra-doc anchor links count as inbound (default False — only cross-doc references).
+- Filters synthetic level-0 doc-roots (parser artifact, not user-facing nav targets).
+- Returns handles only: `{id, title, doc_path, level, summary}` — no content reads.
+- Registered as 39th MCP tool. Schema requires `repo`.
+- 9 tests in `tests/test_v1_39_0.py` covering hub-vs-linked-vs-orphan classification, synthetic-root filtering, handle shape, error paths, schema parity.
+- `tests/test_server.py` tool count 38 → 39.
+
+**Replay gate:** all 7 fixtures pass at 1.0 nDCG/MRR/Recall vs v1.38.0.
+**Tests:** 942 → 951 (+9).
 
 ### v1.38.0 — get_section_summary metadata-only retrieval — ✅ SHIPPED (2026-04-26)
 **Goal:** Fill the gap between `get_toc` (brief handles) and `get_section` (full content). New `get_section_summary` tool returns the full indexed metadata for one section — title, summary, role, tags, metadata, parent_id, children, content_hash, byte_start/end, plus a derived `byte_length` — without paying for the byte-range read. Pairs with v1.37's `section_neighbors`: both handle-only navigation primitives.

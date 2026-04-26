@@ -23,6 +23,7 @@ from .tools.get_sections import get_sections
 from .tools.get_section_context import get_section_context
 from .tools.section_neighbors import section_neighbors
 from .tools.get_section_summary import get_section_summary
+from .tools.get_orphan_sections import get_orphan_sections
 from .tools.delete_index import delete_index
 from .tools.get_broken_links import get_broken_links
 from .tools.get_doc_coverage import get_doc_coverage
@@ -384,6 +385,25 @@ async def list_tools() -> list[Tool]:
                     }
                 },
                 "required": ["repo", "section_id"]
+            }
+        ),
+        Tool(
+            name="get_orphan_sections",
+            description="v1.39+ — list sections whose doc_path receives zero inbound references from any other doc. Companion to get_broken_links and get_stale_pages: documentation that exists but nobody links to.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "Repository identifier (owner/repo or just repo name)"
+                    },
+                    "include_same_doc": {
+                        "type": "boolean",
+                        "description": "If true, count intra-document anchor links as inbound (e.g. a TOC at the top of a page). Default false — only cross-document references count.",
+                        "default": False
+                    }
+                },
+                "required": ["repo"]
             }
         ),
         Tool(
@@ -1001,6 +1021,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             result = get_section_summary(
                 repo=arguments["repo"],
                 section_id=arguments["section_id"],
+                storage_path=storage_path,
+            )
+        elif name == "get_orphan_sections":
+            result = get_orphan_sections(
+                repo=arguments["repo"],
+                include_same_doc=arguments.get("include_same_doc", False),
                 storage_path=storage_path,
             )
         elif name == "delete_index":
