@@ -298,6 +298,20 @@ def index_local(
         except Exception:
             pass  # glossary is best-effort; never fail indexing
 
+        # v1.24.0: related-graph adjacency list sidecar.
+        try:
+            from ..retrieval.related_persist import write as _write_related
+            _write_related(storage_path, owner, repo_name, all_sections)
+        except Exception:
+            pass
+
+        # v1.24.0: boilerplate detector sidecar.
+        try:
+            from ..retrieval.boilerplate import write as _write_boilerplate
+            _write_boilerplate(storage_path, owner, repo_name, all_sections)
+        except Exception:
+            pass
+
         saved = store.save_index(
             owner=owner,
             name=repo_name,

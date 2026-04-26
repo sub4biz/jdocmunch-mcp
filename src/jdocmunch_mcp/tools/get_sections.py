@@ -13,6 +13,7 @@ def get_sections(
     repo: str,
     section_ids: list,
     verify: bool = False,
+    strip_boilerplate: bool = False,
     storage_path: Optional[str] = None,
 ) -> dict:
     """Retrieve full content for multiple sections in one call.
@@ -36,6 +37,11 @@ def get_sections(
 
     results = []
     total_tokens_saved = 0
+    total_boilerplate_stripped = 0
+    fragments: list = []
+    if strip_boilerplate:
+        from ..retrieval.boilerplate import load as _load_bp
+        fragments = _load_bp(storage_path, owner, name)
     # Cache raw file sizes per doc_path to avoid repeated os.path.getsize calls
     doc_raw_sizes: dict = {}
 
@@ -49,6 +55,11 @@ def get_sections(
         if content is None:
             results.append({"error": f"Content not available for section: {section_id}"})
             continue
+
+        if strip_boilerplate and fragments:
+            from ..retrieval.boilerplate import strip as _strip_bp
+            content, removed = _strip_bp(content, fragments)
+            total_boilerplate_stripped += removed
 
         result_sec = {k: v for k, v in sec.items() if k != "content"}
         result_sec["content"] = content
@@ -77,14 +88,17 @@ def get_sections(
     ca = cost_avoided(total_tokens_saved, total)
 
     latency_ms = int((time.perf_counter() - t0) * 1000)
+    meta = {
+        "latency_ms": latency_ms,
+        "sections_returned": len(results),
+        "tokens_saved": total_tokens_saved,
+        "total_tokens_saved": total,
+        **ca,
+    }
+    if strip_boilerplate:
+        meta["boilerplate_stripped_bytes"] = total_boilerplate_stripped
     return {
         "sections": results,
         "section_count": len(results),
-        "_meta": {
-            "latency_ms": latency_ms,
-            "sections_returned": len(results),
-            "tokens_saved": total_tokens_saved,
-            "total_tokens_saved": total,
-            **ca,
-        },
+        "_meta": meta,
     }

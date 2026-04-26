@@ -246,6 +246,11 @@ async def list_tools() -> list[Tool]:
                         "type": "boolean",
                         "description": "Verify content hash matches stored hash (detects source drift)",
                         "default": False
+                    },
+                    "strip_boilerplate": {
+                        "type": "boolean",
+                        "description": "v1.24+ — when true, suppress repeated cross-section fragments (footers, nav, license headers) before returning content.",
+                        "default": False
                     }
                 },
                 "required": ["repo", "section_id"]
@@ -269,6 +274,11 @@ async def list_tools() -> list[Tool]:
                     "verify": {
                         "type": "boolean",
                         "description": "Verify content hashes",
+                        "default": False
+                    },
+                    "strip_boilerplate": {
+                        "type": "boolean",
+                        "description": "v1.24+ — strip repeated cross-section fragments per section before returning.",
                         "default": False
                     }
                 },
@@ -301,7 +311,12 @@ async def list_tools() -> list[Tool]:
                     },
                     "include_related": {
                         "type": "boolean",
-                        "description": "v2.0+ adaptive context: append structural + semantic neighbor summaries.",
+                        "description": "v1.20+ adaptive context: append structural + semantic neighbor summaries.",
+                        "default": False
+                    },
+                    "strip_boilerplate": {
+                        "type": "boolean",
+                        "description": "v1.24+ — strip repeated cross-section fragments before returning the target section content.",
                         "default": False
                     }
                 },
@@ -822,6 +837,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 repo=arguments["repo"],
                 section_id=arguments["section_id"],
                 verify=arguments.get("verify", False),
+                strip_boilerplate=arguments.get("strip_boilerplate", False),
                 storage_path=storage_path,
             )
         elif name == "get_sections":
@@ -829,6 +845,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 repo=arguments["repo"],
                 section_ids=arguments["section_ids"],
                 verify=arguments.get("verify", False),
+                strip_boilerplate=arguments.get("strip_boilerplate", False),
                 storage_path=storage_path,
             )
         elif name == "get_section_context":
@@ -838,6 +855,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 max_tokens=arguments.get("max_tokens", 2000),
                 include_children=arguments.get("include_children", True),
                 include_related=arguments.get("include_related", False),
+                strip_boilerplate=arguments.get("strip_boilerplate", False),
                 storage_path=storage_path,
             )
         elif name == "delete_index":

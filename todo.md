@@ -357,7 +357,7 @@ Everything from the original "v2.0.0 capstone bundle" that can be re-engineered 
 - New `tools/tune_weights.py` and `tune_weights` MCP tool: reads `ranking_events`, proposes ±0.05 step on `semantic_weight` per repo when correlation crosses threshold (min 50 events). Persists to `~/.doc-index/tuning.jsonc`.
 - `search_sections` reads the tuned weight when `semantic_weight` is at its default 0.5; explicit non-default values always win.
 
-### v1.24.0 — Related-graph persistence + boilerplate detector
+### v1.24.0 — Related-graph persistence + boilerplate detector — ✅ SHIPPED (2026-04-26)
 **Goal:** Speed up `get_related_sections` on big indexes; remove repeated headers/footers from token budgets.
 
 - Sidecar adjacency list at `~/.doc-index/<owner>/<name>.related.json` written at index time. `get_related_sections` consumes it when present; falls back to on-demand build (current behavior).

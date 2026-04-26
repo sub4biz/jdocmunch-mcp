@@ -6,6 +6,7 @@ import time
 from typing import Optional
 
 from ..retrieval.related import get_related
+from ..retrieval.related_persist import lookup as _persisted_lookup
 from ..storage import DocStore
 
 
@@ -38,20 +39,35 @@ def get_related_sections(
     if not target:
         return {"error": f"Section not found: {section_id}"}
 
-    out = get_related(
-        index.sections,
-        section_id,
-        mode=mode,
-        top_n=top_n,
-        min_score=min_score,
-        max_per_kind=max_per_kind,
-    )
+    # v1.24.0: prefer the persisted adjacency sidecar when present.
+    persisted_used = False
+    persisted = _persisted_lookup(storage_path, owner, name, section_id)
+    if persisted is not None:
+        out = {
+            "section_id": section_id,
+            "structural": persisted.get("structural", []) if mode in ("structural", "both") else [],
+            "semantic": persisted.get("semantic", []) if mode in ("semantic", "both") else [],
+        }
+        # Honor caller-supplied limits even on the cached payload.
+        out["structural"] = out["structural"][:max_per_kind * 4] if max_per_kind else out["structural"]
+        out["semantic"] = [n for n in out["semantic"] if (n.get("score") or 0) >= min_score][:top_n]
+        persisted_used = True
+    else:
+        out = get_related(
+            index.sections,
+            section_id,
+            mode=mode,
+            top_n=top_n,
+            min_score=min_score,
+            max_per_kind=max_per_kind,
+        )
 
     meta: dict = {
         "latency_ms": int((time.perf_counter() - t0) * 1000),
         "structural_count": len(out.get("structural", [])),
         "semantic_count": len(out.get("semantic", [])),
         "mode": mode,
+        "source": "sidecar" if persisted_used else "on_demand",
     }
     if mode in ("semantic", "both") and not index._has_embeddings():
         meta["hint"] = (

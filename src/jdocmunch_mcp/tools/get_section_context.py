@@ -13,6 +13,7 @@ def get_section_context(
     max_tokens: int = 2000,
     include_children: bool = True,
     include_related: bool = False,
+    strip_boilerplate: bool = False,
     storage_path: Optional[str] = None,
 ) -> dict:
     """Return a section with its surrounding hierarchy context.
@@ -68,6 +69,13 @@ def get_section_context(
     content = store.get_section_content(owner, name, section_id, _index=index)
     if content is None:
         return {"error": f"Content not available for section: {section_id}"}
+
+    boilerplate_stripped_bytes = 0
+    if strip_boilerplate:
+        from ..retrieval.boilerplate import load as _load_bp, strip as _strip_bp
+        fragments = _load_bp(storage_path, owner, name)
+        if fragments:
+            content, boilerplate_stripped_bytes = _strip_bp(content, fragments)
 
     max_bytes = max_tokens * 4
     truncated = False
@@ -155,4 +163,6 @@ def get_section_context(
     if include_related:
         out["related"] = related
         out["_meta"]["related_count"] = len(related)
+    if strip_boilerplate:
+        out["_meta"]["boilerplate_stripped_bytes"] = boilerplate_stripped_bytes
     return out

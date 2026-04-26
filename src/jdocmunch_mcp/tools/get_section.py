@@ -13,6 +13,7 @@ def get_section(
     repo: str,
     section_id: str,
     verify: bool = False,
+    strip_boilerplate: bool = False,
     storage_path: Optional[str] = None,
 ) -> dict:
     """Retrieve the full content of a single section using byte-range reads.
@@ -42,6 +43,13 @@ def get_section(
     if content is None:
         return {"error": f"Content not available for section: {section_id}"}
 
+    boilerplate_stripped_bytes = 0
+    if strip_boilerplate:
+        from ..retrieval.boilerplate import load as _load_bp, strip as _strip_bp
+        fragments = _load_bp(storage_path, owner, name)
+        if fragments:
+            content, boilerplate_stripped_bytes = _strip_bp(content, fragments)
+
     result_sec = {k: v for k, v in sec.items() if k != "content"}
     result_sec["content"] = content
 
@@ -65,12 +73,15 @@ def get_section(
     ca = cost_avoided(tokens_saved, total)
 
     latency_ms = int((time.perf_counter() - t0) * 1000)
+    meta = {
+        "latency_ms": latency_ms,
+        "sections_returned": 1,
+        "tokens_saved": tokens_saved,
+        **ca,
+    }
+    if strip_boilerplate:
+        meta["boilerplate_stripped_bytes"] = boilerplate_stripped_bytes
     return {
         "section": result_sec,
-        "_meta": {
-            "latency_ms": latency_ms,
-            "sections_returned": 1,
-            "tokens_saved": tokens_saved,
-            **ca,
-        },
+        "_meta": meta,
     }
