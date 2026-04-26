@@ -26,6 +26,7 @@ from .tools.get_section_summary import get_section_summary
 from .tools.get_orphan_sections import get_orphan_sections
 from .tools.get_section_path import get_section_path
 from .tools.get_section_excerpt import get_section_excerpt
+from .tools.get_section_descendants import get_section_descendants
 from .tools.delete_index import delete_index
 from .tools.get_broken_links import get_broken_links
 from .tools.get_doc_coverage import get_doc_coverage
@@ -392,6 +393,29 @@ async def list_tools() -> list[Tool]:
                     "section_id": {
                         "type": "string",
                         "description": "Target section ID from get_toc, search_sections, etc."
+                    }
+                },
+                "required": ["repo", "section_id"]
+            }
+        ),
+        Tool(
+            name="get_section_descendants",
+            description="v1.43+ — return every descendant of a section (BFS over parent_id) in document order with depth offset. Pairs with get_section_path (ancestors). Optional max_depth caps the walk; max_depth=1 returns immediate children only. Handles only — no content.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "Repository identifier"
+                    },
+                    "section_id": {
+                        "type": "string",
+                        "description": "Target section. Its descendants are returned; target itself is not included."
+                    },
+                    "max_depth": {
+                        "type": "integer",
+                        "description": "Optional cap on traversal depth. None = full subtree. 1 = immediate children only.",
+                        "minimum": 0
                     }
                 },
                 "required": ["repo", "section_id"]
@@ -1093,6 +1117,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 repo=arguments["repo"],
                 section_id=arguments["section_id"],
                 max_bytes=arguments.get("max_bytes", 500),
+                storage_path=storage_path,
+            )
+        elif name == "get_section_descendants":
+            result = get_section_descendants(
+                repo=arguments["repo"],
+                section_id=arguments["section_id"],
+                max_depth=arguments.get("max_depth"),
                 storage_path=storage_path,
             )
         elif name == "delete_index":

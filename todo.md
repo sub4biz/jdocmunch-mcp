@@ -2,8 +2,21 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.42.0)
-**Status:** v1.10.0–v1.42.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.43.0)
+**Status:** v1.10.0–v1.43.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.43.0 — get_section_descendants subtree traversal — ✅ SHIPPED (2026-04-26)
+**Goal:** Pair with v1.40's `get_section_path` (ancestors). New `get_section_descendants` walks parent_id downward via BFS and returns every descendant in document order with a `depth` offset from the target. Handle-only — no content reads. Optional `max_depth` caps the walk; `max_depth=1` = immediate children only. Cycle-safe.
+
+**Deliverables:**
+- New `tools/get_section_descendants.py`. BFS over a one-pass-built `parent_id → [children]` index for O(N) traversal.
+- Stable ordering: `(depth asc, byte_start asc)` so parents precede children.
+- Registered as 42nd MCP tool. Schema requires `repo` + `section_id`; optional `max_depth: integer ≥ 0`.
+- 10 tests in `tests/test_v1_43_0.py` covering leaf with no descendants, full subtree walk, max_depth=0/1/None, depth offset correctness, sort order, error paths, schema parity.
+- `tests/test_server.py` tool count 41 → 42.
+
+**Replay gate:** all 7 fixtures pass at 1.0 nDCG/MRR/Recall vs v1.42.0.
+**Tests:** 978 → 989 (+11).
 
 ### v1.42.0 — search_sections quality filters — ✅ SHIPPED (2026-04-26)
 **Goal:** Cut noise from search results. New `min_answerability` and `min_quotability` filters on `search_sections` drop results below the v1.33 per-result quality thresholds. Pure additive — defaults None mean no filter.
