@@ -25,6 +25,7 @@ from .tools.section_neighbors import section_neighbors
 from .tools.get_section_summary import get_section_summary
 from .tools.get_orphan_sections import get_orphan_sections
 from .tools.get_section_path import get_section_path
+from .tools.get_section_excerpt import get_section_excerpt
 from .tools.delete_index import delete_index
 from .tools.get_broken_links import get_broken_links
 from .tools.get_doc_coverage import get_doc_coverage
@@ -383,6 +384,29 @@ async def list_tools() -> list[Tool]:
                     "section_id": {
                         "type": "string",
                         "description": "Target section ID from get_toc, search_sections, etc."
+                    }
+                },
+                "required": ["repo", "section_id"]
+            }
+        ),
+        Tool(
+            name="get_section_excerpt",
+            description="v1.41+ — return a short content preview (default 500 bytes) for one section. Trimmed to last newline before the cap so it ends on a paragraph boundary. Use to peek at content before paying for a full get_section read. _meta.tokens_saved reports the byte-savings vs full content.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "Repository identifier (owner/repo or just repo name)"
+                    },
+                    "section_id": {
+                        "type": "string",
+                        "description": "Target section ID"
+                    },
+                    "max_bytes": {
+                        "type": "integer",
+                        "description": "Soft cap on excerpt size in UTF-8 bytes. Default 500.",
+                        "default": 500
                     }
                 },
                 "required": ["repo", "section_id"]
@@ -1052,6 +1076,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             result = get_section_path(
                 repo=arguments["repo"],
                 section_id=arguments["section_id"],
+                storage_path=storage_path,
+            )
+        elif name == "get_section_excerpt":
+            result = get_section_excerpt(
+                repo=arguments["repo"],
+                section_id=arguments["section_id"],
+                max_bytes=arguments.get("max_bytes", 500),
                 storage_path=storage_path,
             )
         elif name == "delete_index":

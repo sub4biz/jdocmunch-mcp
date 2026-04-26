@@ -2,8 +2,20 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.40.0)
-**Status:** v1.10.0–v1.40.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.41.0)
+**Status:** v1.10.0–v1.41.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.41.0 — get_section_excerpt content preview — ✅ SHIPPED (2026-04-26)
+**Goal:** Cheap content peek between handle-only metadata and full byte-range read. New `get_section_excerpt` returns title + first N bytes of content (default 500). Truncation is UTF-8 char-boundary safe and trims to last newline before the cap so the excerpt ends on a paragraph boundary. Truncated content gets a `…` marker; `_meta.tokens_saved` reports byte savings vs full content.
+
+**Deliverables:**
+- New `tools/get_section_excerpt.py` with `_safe_truncate` helper.
+- Registered as 41st MCP tool. Schema: `repo` + `section_id` required, optional `max_bytes` (default 500).
+- 12 tests in `tests/test_v1_41_0.py` covering UTF-8 boundary safety, newline-trim, truncation marker, full-section pass-through, error paths, schema parity.
+- `tests/test_server.py` tool count 40 → 41.
+
+**Replay gate:** all 7 fixtures pass at 1.0 nDCG/MRR/Recall vs v1.40.0.
+**Tests:** 959 → 971 (+12).
 
 ### v1.40.0 — get_section_path + doc_health orphan rollup — ✅ SHIPPED (2026-04-26)
 **Goal:** Two small additive wins. (a) New `get_section_path` tool walks `parent_id` upward and returns the breadcrumb (root → … → target) handle-only. Cycle-protected. (b) `get_doc_health` now includes `orphan_section_count` from v1.39's `get_orphan_sections` — completes the doc-health rollup.
