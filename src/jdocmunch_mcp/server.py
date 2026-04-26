@@ -21,6 +21,7 @@ from .tools.search_sections import search_sections
 from .tools.get_section import get_section
 from .tools.get_sections import get_sections
 from .tools.get_section_context import get_section_context
+from .tools.section_neighbors import section_neighbors
 from .tools.delete_index import delete_index
 from .tools.get_broken_links import get_broken_links
 from .tools.get_doc_coverage import get_doc_coverage
@@ -361,6 +362,24 @@ async def list_tools() -> list[Tool]:
                         "type": "boolean",
                         "description": "v1.24+ — strip repeated cross-section fragments before returning the target section content.",
                         "default": False
+                    }
+                },
+                "required": ["repo", "section_id"]
+            }
+        ),
+        Tool(
+            name="section_neighbors",
+            description="v1.37+ — return prev/next siblings (in document order), parent, and first child for a section. Handles only (id, title, level, doc_path) — no content. Use for fast sequential navigation without re-querying search_sections.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "Repository identifier (owner/repo or just repo name)"
+                    },
+                    "section_id": {
+                        "type": "string",
+                        "description": "Target section ID from get_toc, search_sections, etc."
                     }
                 },
                 "required": ["repo", "section_id"]
@@ -951,6 +970,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 include_children=arguments.get("include_children", True),
                 include_related=arguments.get("include_related", False),
                 strip_boilerplate=arguments.get("strip_boilerplate", False),
+                storage_path=storage_path,
+            )
+        elif name == "section_neighbors":
+            result = section_neighbors(
+                repo=arguments["repo"],
+                section_id=arguments["section_id"],
                 storage_path=storage_path,
             )
         elif name == "delete_index":

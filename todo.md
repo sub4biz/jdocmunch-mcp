@@ -2,8 +2,22 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.36.0)
-**Status:** v1.10.0–v1.36.0 shipped. 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.37.0)
+**Status:** v1.10.0–v1.37.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.37.0 — section_neighbors navigation tool — ✅ SHIPPED (2026-04-26)
+**Goal:** Cheap document-order navigation. New `section_neighbors` MCP tool returns prev/next siblings (in `byte_start` order, restricted to same `doc_path`), parent (via `parent_id`), and first child for a given section. Handles only — `{id, title, level, doc_path}` — no content reads. Fills the gap between `get_toc` (whole repo) and `get_section_context` (target+ancestors+children with content).
+
+**Deliverables:**
+- New `tools/section_neighbors.py` — pure Python, no embedding/byte-range reads.
+- Registered as 37th MCP tool. Schema requires `repo` + `section_id`.
+- 8 tests in `tests/test_v1_37_0.py` covering doc-isolation (no cross-doc next), parent resolution, first-child retrieval, error paths, handle shape.
+- `tests/test_server.py` tool count 36 → 37.
+
+### Hotfixes
+- **v1.36.1** — deterministic ranking tie-break across all 4 sort sites in `doc_store.py`: score-only sort left ties in os.walk order, varying by filesystem. Now `(-score, section_id)`.
+- **v1.36.2** — relaxed CI test thresholds (gate 0.02→0.05, lock 0.98→0.95) to absorb cross-platform BM25 line-length variance from CRLF vs LF checkouts.
+- **v1.36.3** — bumped CI gate 0.05→0.06 to absorb a 4e-17 floating-point sliver. Release-time strict 0.02 gate unchanged.
 
 ### v1.36.0 — path_glob filter on retrieval — ✅ SHIPPED (2026-04-26)
 **Goal:** Monorepo scoping. New `path_glob` arg on `search_sections`, `get_toc`, and `get_toc_tree` restricts results to sections whose `doc_path` matches an fnmatch pattern (e.g. `"api/**/*.md"`, `"reference/*"`). Stacks with the existing exact-match `doc_path` arg. Defaults to None (no filter).
