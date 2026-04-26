@@ -272,6 +272,11 @@ async def list_tools() -> list[Tool]:
                         "type": "boolean",
                         "description": "v1.24+ — when true, suppress repeated cross-section fragments (footers, nav, license headers) before returning content.",
                         "default": False
+                    },
+                    "compress_code": {
+                        "type": "boolean",
+                        "description": "v1.35+ — when true, drop blank lines and full-line comments inside fenced code blocks before returning. _meta.code_compressed_bytes reports bytes saved.",
+                        "default": False
                     }
                 },
                 "required": ["repo", "section_id"]
@@ -300,6 +305,11 @@ async def list_tools() -> list[Tool]:
                     "strip_boilerplate": {
                         "type": "boolean",
                         "description": "v1.24+ — strip repeated cross-section fragments per section before returning.",
+                        "default": False
+                    },
+                    "compress_code": {
+                        "type": "boolean",
+                        "description": "v1.35+ — drop blank lines and full-line comments inside fenced code blocks before returning. _meta.code_compressed_bytes reports total bytes saved.",
                         "default": False
                     }
                 },
@@ -906,6 +916,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 section_id=arguments["section_id"],
                 verify=arguments.get("verify", False),
                 strip_boilerplate=arguments.get("strip_boilerplate", False),
+                compress_code=arguments.get("compress_code", False),
                 storage_path=storage_path,
             )
         elif name == "get_sections":
@@ -914,6 +925,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 section_ids=arguments["section_ids"],
                 verify=arguments.get("verify", False),
                 strip_boilerplate=arguments.get("strip_boilerplate", False),
+                compress_code=arguments.get("compress_code", False),
                 storage_path=storage_path,
             )
         elif name == "get_section_context":

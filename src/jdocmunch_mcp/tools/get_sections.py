@@ -14,6 +14,7 @@ def get_sections(
     section_ids: list,
     verify: bool = False,
     strip_boilerplate: bool = False,
+    compress_code: bool = False,
     storage_path: Optional[str] = None,
 ) -> dict:
     """Retrieve full content for multiple sections in one call.
@@ -38,6 +39,7 @@ def get_sections(
     results = []
     total_tokens_saved = 0
     total_boilerplate_stripped = 0
+    total_code_compressed = 0
     fragments: list = []
     if strip_boilerplate:
         from ..retrieval.boilerplate import load as _load_bp
@@ -60,6 +62,11 @@ def get_sections(
             from ..retrieval.boilerplate import strip as _strip_bp
             content, removed = _strip_bp(content, fragments)
             total_boilerplate_stripped += removed
+
+        if compress_code:
+            from ..retrieval.code_compress import compress_fenced_code as _compress
+            content, saved = _compress(content)
+            total_code_compressed += saved
 
         result_sec = {k: v for k, v in sec.items() if k != "content"}
         result_sec["content"] = content
@@ -97,6 +104,8 @@ def get_sections(
     }
     if strip_boilerplate:
         meta["boilerplate_stripped_bytes"] = total_boilerplate_stripped
+    if compress_code:
+        meta["code_compressed_bytes"] = total_code_compressed
     # v1.32.0: per-section citation block.
     meta["citations"] = []
     for entry in results:

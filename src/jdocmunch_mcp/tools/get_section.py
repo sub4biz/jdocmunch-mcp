@@ -14,6 +14,7 @@ def get_section(
     section_id: str,
     verify: bool = False,
     strip_boilerplate: bool = False,
+    compress_code: bool = False,
     storage_path: Optional[str] = None,
 ) -> dict:
     """Retrieve the full content of a single section using byte-range reads.
@@ -22,6 +23,12 @@ def get_section(
         repo: Repository identifier.
         section_id: Section ID from get_toc, search_sections, etc.
         verify: If True, verify content hash matches the stored hash.
+        strip_boilerplate: If True, strip cross-section repeated fragments.
+        compress_code: v1.35+ — if True, drop blank lines and full-line
+            comments inside fenced code blocks before returning. The
+            on-disk content is never mutated; only the response copy is
+            compressed. Bytes saved are reported in
+            ``_meta.code_compressed_bytes``.
         storage_path: Custom storage path.
 
     Returns:
@@ -49,6 +56,11 @@ def get_section(
         fragments = _load_bp(storage_path, owner, name)
         if fragments:
             content, boilerplate_stripped_bytes = _strip_bp(content, fragments)
+
+    code_compressed_bytes = 0
+    if compress_code:
+        from ..retrieval.code_compress import compress_fenced_code as _compress
+        content, code_compressed_bytes = _compress(content)
 
     result_sec = {k: v for k, v in sec.items() if k != "content"}
     result_sec["content"] = content
@@ -81,6 +93,8 @@ def get_section(
     }
     if strip_boilerplate:
         meta["boilerplate_stripped_bytes"] = boilerplate_stripped_bytes
+    if compress_code:
+        meta["code_compressed_bytes"] = code_compressed_bytes
     # v1.32.0: citation block — verifiable provenance for the returned content.
     meta["citation"] = {
         "repo": f"{owner}/{name}",

@@ -1,3 +1,3 @@
 """jDocMunch MCP — structured documentation retrieval server."""
 
-__version__ = "1.34.0"
+__version__ = "1.35.0"

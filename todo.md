@@ -2,8 +2,20 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.20.0 retitling)
-**Status:** v1.10.0–v1.20.0 shipped. 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.35.0)
+**Status:** v1.10.0–v1.35.0 shipped. 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.35.0 — CHANGELOG generator + code-block compression — ✅ SHIPPED (2026-04-26)
+**Goal:** Two small wins. (a) Make CHANGELOG.md mechanically reproducible from git — a release-time utility that reads `release: vN.N.N — title` commits and re-renders Keep-a-Changelog markdown. (b) Add an opt-in `compress_code` kwarg on `get_section`/`get_sections` that strips blank lines and full-line comments inside fenced code blocks before returning. Disk content untouched; `_meta.code_compressed_bytes` reports savings.
+
+**Deliverables:**
+- `scripts/generate_changelog.py` — git-driven Keep-a-Changelog renderer (idempotent, em/en/hyphen-tolerant separator, drops Co-Authored-By trailers).
+- `src/jdocmunch_mcp/retrieval/code_compress.py` — fence state machine, language→comment-marker map (Python/JS/TS/SQL/Lua/Lisp/Erlang families), partial-line comments preserved.
+- `compress_code: bool = False` on `get_section` and `get_sections`. Schema + dispatch updated.
+- 29 tests in `tests/test_v1_35_0.py` covering compression edge cases (empty, no-fence, tilde fences, long fences, unclosed, multiple fences, partial comments, unknown languages), batch aggregation, schema parity, and the CHANGELOG generator (regex separators, paragraph extraction, end-to-end smoke).
+
+**Replay gate:** all 7 fixtures pass vs v1.34.0 baseline (no regression).
+**Tests:** 883 → 912 (+29).
 **Scope:** All planned features re-engineered to ship within the 1.x line. Each release is independently shippable, gated by replay benchmark from v1.11.0 onward.
 
 ---
