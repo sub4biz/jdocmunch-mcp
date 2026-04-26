@@ -385,14 +385,17 @@ Everything from the original "v2.0.0 capstone bundle" that can be re-engineered 
 - `verify_index` MCP tool + `jdocmunch-mcp verify-index` CLI subcommand. Walks every section, byte-range-reads, recomputes SHA-256, compares to stored hash. Reports drift / missing / error. Exits 2 on drift; 0 clean.
 - Section-boundary golden corpus: `tests/fixtures/golden_sections/*.json` snapshots of {id, title, level, byte_start, byte_end, content_hash, parent_id} for every file under `benchmarks/replay/corpus/`. Property test asserts current parser output matches.
 
-### v1.28.0+ — Phase-6 infrastructure backlog (remaining)
+### v1.28.0 — Phase-6 infrastructure (batch 2: drift sim + cross-platform paths + replay log) — ✅ SHIPPED (2026-04-26)
+**Shipped:**
+- Embedding-drift simulation suite — provider-swap scenarios prove the canary alarms fire at expected thresholds (subtle drift below threshold, orthogonal swap, anti-parallel swap, threshold-boundary just-above-vs-loose).
+- Cross-platform path matrix — `_safe_content_path` resolves nested doc paths within root and rejects traversal; `index_local` round-trip with deep nesting confirmed; stored `doc_path` always uses posix separators.
+- Retrieval-replay log capture (opt-in via `JDOCMUNCH_REPLAY_LOG=1`). JSONL stream at `~/.doc-index/replay.log` complementary to v1.23 SQLite ranking ledger; grep-friendly. `read_all(limit=N)` for offline analysis.
+
+### v1.29.0+ — Phase-6 infrastructure backlog (remaining)
 **Goal:** Continue tightening as identified in PRD §6.
 
 - Multi-format regression suite (real-world docs as a `corpus/` git submodule).
 - Stale-index simulation tests.
-- Embedding-drift simulation suite (mock provider swap, assert canary alarm).
-- Cross-platform path test matrix (Windows/Posix).
-- Retrieval-replay log capture (opt-in JSONL append for production query analysis).
 - README.md / SPEC.md surfacing of the 1.x compatibility commitment.
 - Sphinx `.. toctree::` and VuePress sidebar JSON detection in `get_tutorial_path`.
 - OpenAPI 3.1 + Swagger 2.0 explicit replay fixtures.

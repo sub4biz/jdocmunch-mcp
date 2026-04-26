@@ -213,6 +213,26 @@ def search_sections(
         )
     except Exception:
         pass
+
+    # v1.28.0: opt-in retrieval-replay log capture (grep-friendly JSONL).
+    try:
+        from ..storage import replay_log
+        scores = [r.get("_score") for r in results if isinstance(r.get("_score"), (int, float))]
+        top1 = results[0] if results else None
+        replay_log.append(
+            repo=f"{owner}/{name}",
+            query=query,
+            mode=mode,
+            semantic_used=mode in ("hybrid", "semantic_only"),
+            semantic_weight=semantic_weight,
+            top1_id=top1.get("id") if top1 else None,
+            top1_score=scores[0] if scores else None,
+            confidence=meta.get("confidence"),
+            result_count=len(results),
+            base_path=storage_path,
+        )
+    except Exception:
+        pass
     if not has_emb and mode == "lexical":
         meta["tip"] = "Re-index with use_embeddings=True for semantic search (better recall on paraphrased queries)"
 
