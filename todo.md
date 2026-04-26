@@ -97,7 +97,7 @@ Each release: version bump → tests pass (`PYTHONPATH=src python -m pytest test
 
 ---
 
-### v1.11.0 — Replay benchmark + retrieval quality baseline
+### v1.11.0 — Replay benchmark + retrieval quality baseline — ✅ SHIPPED (2026-04-26)
 **Goal:** Lock current behavior. Every future release proves it didn't regress.
 
 **New module:** `benchmarks/replay/`

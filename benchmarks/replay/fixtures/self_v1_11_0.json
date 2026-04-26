@@ -1,0 +1,78 @@
+{
+  "name": "self_v1_11_0",
+  "description": "Self-fixture: queries against jdocmunch-mcp's own documentation. Locked at v1.11.0; every future release must score >= 0.98 on each aggregate.",
+  "repo_path": ".",
+  "repo_id": "jdocmunch-mcp",
+  "queries": [
+    {
+      "query": "search sections",
+      "expected_top_k": [
+        "local/jdocmunch-mcp::SPEC.md::technical-specification/mcp-tools-11/search-tools/search-sections-weighted-section-search#4"
+      ],
+      "k": 5
+    },
+    {
+      "query": "section retrieval",
+      "expected_top_k": [
+        "local/jdocmunch-mcp::README.md::jdocmunch-mcp/what-makes-it-different/section-first-retrieval#3"
+      ],
+      "k": 5
+    },
+    {
+      "query": "byte offset",
+      "expected_top_k": [
+        "local/jdocmunch-mcp::README.md::jdocmunch-mcp/what-makes-it-different/byte-precise-extraction#3"
+      ],
+      "k": 5
+    },
+    {
+      "query": "wiki stats",
+      "expected_top_k": [
+        "local/jdocmunch-mcp::benchmarks/jDocMunch_Benchmark_Wiki.md::jdocmunch-mcp-wiki-benchmark#1"
+      ],
+      "k": 5
+    },
+    {
+      "query": "markdown parser",
+      "expected_top_k": [
+        "local/jdocmunch-mcp::ARCHITECTURE.md::architecture/parser-design/markdown-parser#3"
+      ],
+      "k": 5
+    },
+    {
+      "query": "hybrid search",
+      "expected_top_k": [
+        "local/jdocmunch-mcp::CHANGELOG.md::changelog/190-2026-04-19/new-hybrid-bm25-semantic-search#3"
+      ],
+      "k": 5
+    },
+    {
+      "query": "broken links",
+      "expected_top_k": [
+        "local/jdocmunch-mcp::CHANGELOG.md::changelog/150-2026-04-01/new-tools#3"
+      ],
+      "k": 5
+    },
+    {
+      "query": "embedding provider",
+      "expected_top_k": [
+        "local/jdocmunch-mcp::CHANGELOG.md::changelog/190-2026-04-19/new-use-embeddingsauto-default#3"
+      ],
+      "k": 5
+    },
+    {
+      "query": "stale pages",
+      "expected_top_k": [
+        "local/jdocmunch-mcp::CLAUDE.md::jdocmunch-mcp/key-modules#2"
+      ],
+      "k": 5
+    },
+    {
+      "query": "doc store",
+      "expected_top_k": [
+        "local/jdocmunch-mcp::SPEC.md::technical-specification/mcp-tools-11/indexing-tools/index-repo-index-a-github-repositorys-documentation#4"
+      ],
+      "k": 5
+    }
+  ]
+}

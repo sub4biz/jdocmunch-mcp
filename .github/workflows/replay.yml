@@ -1,0 +1,32 @@
+name: Replay
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Run replay benchmark with v1.11.0 gate
+        run: |
+          uv run python -m benchmarks.replay.run_replay \
+            --fixture self_v1_11_0 \
+            --baseline 1.11.0 \
+            --gate 0.02
+        env:
+          PYTHONPATH: src
