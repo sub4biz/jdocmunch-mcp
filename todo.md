@@ -133,7 +133,7 @@ Each release: version bump → tests pass (`PYTHONPATH=src python -m pytest test
 
 ---
 
-### v1.13.0 — Two-stage retrieval + provider caching cleanup
+### v1.13.0 — Two-stage retrieval + provider caching cleanup — ✅ SHIPPED (2026-04-26)
 **Goal:** Latency and cost. Unblocks scaling beyond ~5k sections.
 
 **Components:**

@@ -258,13 +258,73 @@ def should_embed(flag) -> bool:
     return bool(flag)
 
 
+# ---------------------------------------------------------------------------
+# Query-embedding cache (v1.13.0)
+#
+# The same query gets re-embedded across hybrid + semantic_only retries within
+# one search, and across consecutive paginated calls. A small TTL'd LRU keeps
+# the second hit free. Keyed by (provider_signature, query) — provider rotates
+# implicitly invalidate when get_provider_name() changes (the cache key looks
+# up the live provider's signature).
+# ---------------------------------------------------------------------------
+
+_QUERY_CACHE: "OrderedDict[tuple, tuple[float, list]]" = None  # type: ignore[assignment]
+_QUERY_CACHE_MAXSIZE = 256
+_QUERY_CACHE_TTL_SECONDS = 300.0  # 5 minutes
+
+
+def _query_cache() -> "OrderedDict":
+    global _QUERY_CACHE
+    if _QUERY_CACHE is None:
+        from collections import OrderedDict
+        _QUERY_CACHE = OrderedDict()
+    return _QUERY_CACHE
+
+
+def _reset_query_cache() -> None:
+    """Test hook — clears the query embedding cache."""
+    cache = _query_cache()
+    cache.clear()
+
+
 def embed_query(query: str) -> Optional[list]:
-    """Embed a search query. Returns None if no provider is configured."""
+    """Embed a search query. Returns None if no provider is configured.
+
+    Caches by (provider_signature, query) for ``_QUERY_CACHE_TTL_SECONDS``.
+    Provider rotation invalidates implicitly via the signature key.
+    """
+    import time as _time
+
+    name = get_provider_name()
+    if not name:
+        return None
+    sig = _provider_signature(name)
+    key = (sig, query)
+    cache = _query_cache()
+    now = _time.time()
+
+    cached = cache.get(key)
+    if cached is not None:
+        ts, vec = cached
+        if now - ts < _QUERY_CACHE_TTL_SECONDS:
+            cache.move_to_end(key)
+            return vec
+        # Stale — drop and refetch.
+        del cache[key]
+
     provider = _get_provider()
     if not provider:
         return None
     try:
         results = provider.embed_texts([query], task_type="retrieval_query")
-        return results[0] if results and results[0] else None
+        vec = results[0] if results and results[0] else None
     except Exception:
         return None
+    if vec is None:
+        return None
+
+    cache[key] = (now, vec)
+    cache.move_to_end(key)
+    while len(cache) > _QUERY_CACHE_MAXSIZE:
+        cache.popitem(last=False)
+    return vec

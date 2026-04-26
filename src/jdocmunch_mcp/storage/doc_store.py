@@ -178,9 +178,17 @@ class DocIndex:
         max_results: int,
         semantic_weight: float,
     ) -> list:
-        """Fused lexical + semantic ranking. Each channel min-max normalized to
-        [0,1] within the candidate set, then combined as a weighted sum.
+        """Hybrid lexical + semantic ranking via Reciprocal Rank Fusion (v1.13.0).
+
+        Min-max normalization (the v1.9 approach) was unstable under sparse
+        candidate sets — a single result always normalized to 1.0. RRF is
+        rank-based: each ranking contributes ``w / (k + rank_i)`` per item.
+        ``semantic_weight`` is the relative weight of the semantic ranking;
+        the lexical ranking gets ``1 - semantic_weight``. ``k=60`` follows
+        Cormack 2009.
         """
+        from ..retrieval.prune import reciprocal_rank_fusion
+
         query_lower = query.lower()
         query_words = set(query_lower.split())
         query_vec = embed_query(query) if semantic_weight > 0 else None
@@ -188,46 +196,86 @@ class DocIndex:
             # Embedding provider unavailable at query time — degrade to lexical.
             return self._lexical_search(query, doc_path, max_results)
 
-        candidates = []  # list[(lex_score, sem_score, sec)]
+        # ----- Lexical ranking (Stage A prune + BM25) -----
+        engine = getattr(self, "_lexical_engine", "bm25")
+        candidate_ids: Optional[set] = None
+        if engine == "bm25":
+            from ..retrieval.prune import get_or_build
+
+            posting = get_or_build(self, content_loader=self._content_loader)
+            candidate_ids = posting.candidates(query)
+
+        lex_pairs: list[tuple[float, dict]] = []
         for sec in self.sections:
+            if candidate_ids is not None and sec.get("id") not in candidate_ids:
+                continue
             if doc_path and sec.get("doc_path") != doc_path:
                 continue
-            lex = self._score_section(sec, query_lower, query_words)
-            sem = 0.0
-            sec_emb = sec.get("embedding")
-            if query_vec and sec_emb:
-                sem = cosine_similarity(query_vec, sec_emb)
-            if lex <= 0 and sem <= 0:
-                continue
-            candidates.append((lex, sem, sec))
+            score = self._score_section(sec, query_lower, query_words)
+            if score > 0:
+                lex_pairs.append((score, sec))
+        lex_pairs.sort(key=lambda x: x[0], reverse=True)
+        lex_ranking = [s.get("id", "") for _, s in lex_pairs]
 
-        if not candidates:
+        # ----- Semantic ranking (cosine over stored embeddings) -----
+        sem_pairs: list[tuple[float, dict]] = []
+        if query_vec:
+            for sec in self.sections:
+                if doc_path and sec.get("doc_path") != doc_path:
+                    continue
+                sec_emb = sec.get("embedding")
+                if not sec_emb:
+                    continue
+                sem_pairs.append((cosine_similarity(query_vec, sec_emb), sec))
+            sem_pairs.sort(key=lambda x: x[0], reverse=True)
+        sem_ranking = [s.get("id", "") for _, s in sem_pairs]
+
+        if not lex_ranking and not sem_ranking:
             return []
 
-        lex_values = [c[0] for c in candidates]
-        sem_values = [c[1] for c in candidates]
-        lex_lo, lex_hi = min(lex_values), max(lex_values)
-        sem_lo, sem_hi = min(sem_values), max(sem_values)
-        lex_span = lex_hi - lex_lo or 1
-        sem_span = sem_hi - sem_lo or 1
+        # ----- RRF fusion -----
+        fused = reciprocal_rank_fusion(
+            [lex_ranking, sem_ranking],
+            weights=[1.0 - semantic_weight, semantic_weight],
+            k=60,
+        )
 
-        scored = []
-        for lex, sem, sec in candidates:
-            lex_norm = (lex - lex_lo) / lex_span if lex_hi > 0 else 0.0
-            sem_norm = (sem - sem_lo) / sem_span if sem_hi > 0 else 0.0
-            combined = (1.0 - semantic_weight) * lex_norm + semantic_weight * sem_norm
-            scored.append((combined, sec))
-
-        scored.sort(key=lambda x: x[0], reverse=True)
-        return [self._strip(sec) for _, sec in scored[:max_results]]
+        # Materialize top max_results sections.
+        by_id = {s.get("id"): s for s in self.sections}
+        out: list[dict] = []
+        for sid, _score in fused[:max_results]:
+            sec = by_id.get(sid)
+            if sec is not None:
+                out.append(self._strip(sec))
+        return out
 
     def _lexical_search(self, query: str, doc_path: Optional[str], max_results: int) -> list:
-        """Weighted keyword scoring (original algorithm)."""
+        """Two-stage retrieval (v1.13.0): posting-list prune → BM25 rescore.
+
+        Stage A reduces the candidate set to sections containing at least one
+        query token (capped at MAX_CANDIDATES). Stage B applies the
+        per-section scoring engine (BM25 by default, legacy on demand). The
+        prune is skipped under the legacy engine because the legacy heuristic
+        depends on substring matches that the tokenizer doesn't preserve.
+
+        Falls back to full-corpus scan when the posting index can't help —
+        no in-vocab terms, or legacy engine selected.
+        """
+        engine = getattr(self, "_lexical_engine", "bm25")
         query_lower = query.lower()
         query_words = set(query_lower.split())
-        scored = []
 
+        candidate_ids: Optional[set] = None
+        if engine == "bm25":
+            from ..retrieval.prune import get_or_build
+
+            posting = get_or_build(self, content_loader=self._content_loader)
+            candidate_ids = posting.candidates(query)
+
+        scored = []
         for sec in self.sections:
+            if candidate_ids is not None and sec.get("id") not in candidate_ids:
+                continue
             if doc_path and sec.get("doc_path") != doc_path:
                 continue
             score = self._score_section(sec, query_lower, query_words)
