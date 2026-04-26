@@ -178,7 +178,7 @@ class DocIndex:
             score = cosine_similarity(query_vec, sec_emb)
             scored.append((score, sec))
 
-        scored.sort(key=lambda x: x[0], reverse=True)
+        scored.sort(key=lambda x: (-x[0], x[1].get("id", "")))
         out: list[dict] = []
         for score, sec in scored[:max_results]:
             stripped = self._strip(sec)
@@ -229,7 +229,7 @@ class DocIndex:
             score = self._score_section(sec, query_lower, query_words)
             if score > 0:
                 lex_pairs.append((score, sec))
-        lex_pairs.sort(key=lambda x: x[0], reverse=True)
+        lex_pairs.sort(key=lambda x: (-x[0], x[1].get("id", "")))
         lex_ranking = [s.get("id", "") for _, s in lex_pairs]
 
         # ----- Semantic ranking (cosine over stored embeddings) -----
@@ -242,7 +242,7 @@ class DocIndex:
                 if not sec_emb:
                     continue
                 sem_pairs.append((cosine_similarity(query_vec, sec_emb), sec))
-            sem_pairs.sort(key=lambda x: x[0], reverse=True)
+            sem_pairs.sort(key=lambda x: (-x[0], x[1].get("id", "")))
         sem_ranking = [s.get("id", "") for _, s in sem_pairs]
 
         if not lex_ranking and not sem_ranking:
@@ -299,7 +299,7 @@ class DocIndex:
             if score > 0:
                 scored.append((score, sec))
 
-        scored.sort(key=lambda x: x[0], reverse=True)
+        scored.sort(key=lambda x: (-x[0], x[1].get("id", "")))
         out: list[dict] = []
         for score, sec in scored[:max_results]:
             stripped = self._strip(sec)
