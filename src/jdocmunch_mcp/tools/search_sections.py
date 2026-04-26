@@ -227,6 +227,24 @@ def search_sections(
         meta["profile_boost_roles"] = sorted(profile_def["boost_roles"])
     attach_confidence(query, results, meta)
 
+    # v1.33.0: per-result answerability + quotability scores. Read content
+    # via the same byte-range lookup the BM25 engine uses (so we don't
+    # re-load files we already touched during scoring).
+    try:
+        from ..retrieval.scoring import attach_scores
+
+        def _loader(row: dict) -> str:
+            sid = row.get("id")
+            sec = index.get_section(sid) if sid else None
+            if not sec:
+                return ""
+            return index._ensure_content(sec) if hasattr(index, "_ensure_content") else (sec.get("content") or "")
+
+        for row in results:
+            attach_scores(row, text_loader=_loader, query=query)
+    except Exception:
+        pass
+
     # v1.23.0: append a ranking event for offline tuning.
     try:
         from ..storage.token_tracker import record_ranking_event
