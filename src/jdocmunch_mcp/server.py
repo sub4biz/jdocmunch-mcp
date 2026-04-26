@@ -44,6 +44,7 @@ from .tools.get_section_diff import get_section_diff
 from .tools.get_doc_health import get_doc_health
 from .tools.get_tutorial_path import get_tutorial_path
 from .tools.get_undocumented_symbols import get_undocumented_symbols
+from .tools.tune_weights import tune_weights
 
 
 server = Server("jdocmunch-mcp")
@@ -688,6 +689,23 @@ async def list_tools() -> list[Tool]:
             }
         ),
         Tool(
+            name="tune_weights",
+            description=(
+                "Online weight tuning. Reads ranking_events from "
+                "~/.doc-index/telemetry.db (requires JDOCMUNCH_PERF_TELEMETRY=1) "
+                "and proposes a per-repo semantic_weight step. dry_run=true skips "
+                "the disk write. min_events gates against early overfitting."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string", "description": "Optional — single repo to tune. Omit to scan all repos with events."},
+                    "min_events": {"type": "integer", "default": 50},
+                    "dry_run": {"type": "boolean", "default": False}
+                }
+            }
+        ),
+        Tool(
             name="check_embedding_drift",
             description=(
                 "Embedding-drift canary. Without args, re-embeds the saved CANARY_STRINGS "
@@ -957,6 +975,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 repo=arguments["repo"],
                 code_repo=arguments["code_repo"],
                 max_symbols=arguments.get("max_symbols", 1000),
+                storage_path=storage_path,
+            )
+        elif name == "tune_weights":
+            result = tune_weights(
+                repo=arguments.get("repo"),
+                min_events=arguments.get("min_events", 50),
+                dry_run=arguments.get("dry_run", False),
                 storage_path=storage_path,
             )
         else:

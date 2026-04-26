@@ -347,3 +347,131 @@ def reset_latency_state() -> None:
     with _LATENCY_LOCK:
         _TOOL_LATENCIES.clear()
         _TOOL_ERRORS.clear()
+
+
+# ---------------------------------------------------------------------------
+# v1.23.0 — ranking-event ledger
+#
+# A second persistent table that captures one row per `search_sections` /
+# related-tool invocation when telemetry is enabled. The columns are
+# what online weight tuning needs: which repo, which mode, whether the
+# semantic channel actually contributed, and the retrieval-confidence
+# score. Schema is forward-compatible — new columns get added as
+# nullable, never renamed.
+#
+# Behavior is identical to the v1.14 latency sink: free in-memory, opt-in
+# SQLite via ``JDOCMUNCH_PERF_TELEMETRY=1``. Failures swallowed.
+# ---------------------------------------------------------------------------
+
+def _ensure_ranking_schema(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS ranking_events (
+            ts REAL NOT NULL,
+            repo TEXT,
+            tool TEXT,
+            query TEXT,
+            mode TEXT,
+            semantic_used INTEGER,
+            semantic_weight REAL,
+            top1_score REAL,
+            top2_score REAL,
+            confidence REAL,
+            result_count INTEGER
+        )
+        """
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_ranking_repo_ts ON ranking_events(repo, ts)")
+
+
+def record_ranking_event(
+    *,
+    repo: Optional[str],
+    tool: str,
+    query: str,
+    mode: str,
+    semantic_used: bool,
+    semantic_weight: float,
+    top1_score: Optional[float] = None,
+    top2_score: Optional[float] = None,
+    confidence: Optional[float] = None,
+    result_count: int = 0,
+    base_path: Optional[str] = None,
+) -> None:
+    """Append one ranking event to ``~/.doc-index/telemetry.db``.
+
+    No-op when telemetry is not enabled. Never raises — telemetry must
+    not break a working tool call.
+    """
+    if not _telemetry_enabled():
+        return
+    try:
+        path = _telemetry_db_path(base_path)
+        conn = sqlite3.connect(str(path), isolation_level=None, timeout=2.0)
+        try:
+            _ensure_ranking_schema(conn)
+            conn.execute(
+                "INSERT INTO ranking_events (ts, repo, tool, query, mode, "
+                "semantic_used, semantic_weight, top1_score, top2_score, "
+                "confidence, result_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    time.time(),
+                    repo,
+                    tool,
+                    query,
+                    mode,
+                    1 if semantic_used else 0,
+                    float(semantic_weight),
+                    float(top1_score) if top1_score is not None else None,
+                    float(top2_score) if top2_score is not None else None,
+                    float(confidence) if confidence is not None else None,
+                    int(result_count),
+                ),
+            )
+        finally:
+            conn.close()
+    except Exception:
+        pass
+
+
+def ranking_db_query(
+    repo: Optional[str] = None,
+    limit: int = 10000,
+    base_path: Optional[str] = None,
+) -> list[dict]:
+    """Return recent ranking events as a list of dicts.
+
+    Filters by repo when supplied. Empty list when telemetry DB doesn't
+    exist or the table is missing. Always read-only.
+    """
+    path = _telemetry_db_path(base_path)
+    if not path.exists():
+        return []
+    try:
+        conn = sqlite3.connect(str(path), timeout=2.0)
+        try:
+            try:
+                conn.execute("SELECT 1 FROM ranking_events LIMIT 1").fetchone()
+            except sqlite3.OperationalError:
+                return []
+            params: tuple = ()
+            sql = (
+                "SELECT ts, repo, tool, query, mode, semantic_used, semantic_weight, "
+                "top1_score, top2_score, confidence, result_count FROM ranking_events"
+            )
+            if repo:
+                sql += " WHERE repo = ?"
+                params = (repo,)
+            sql += " ORDER BY ts DESC LIMIT ?"
+            params = params + (int(limit),)
+            rows = conn.execute(sql, params).fetchall()
+        finally:
+            conn.close()
+    except Exception:
+        return []
+
+    cols = [
+        "ts", "repo", "tool", "query", "mode", "semantic_used", "semantic_weight",
+        "top1_score", "top2_score", "confidence", "result_count",
+    ]
+    return [dict(zip(cols, r)) for r in rows]

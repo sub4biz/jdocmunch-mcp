@@ -349,7 +349,7 @@ Everything from the original "v2.0.0 capstone bundle" that can be re-engineered 
 - `get_tutorial_path(repo, start_section_id)` — detects `Next:` / `Previous:` links, frontmatter `next:` / `prev:`, ordered file naming (`01-intro.md`); returns ordered section IDs.
 - `get_undocumented_symbols(doc_repo, code_repo)` — companion to jcodemunch's `get_untested_symbols`; walks code_repo's symbols and returns those whose name/qualified-name appears in zero section title/summary/content. Best-effort jcodemunch bridge (mirrors v1.17 `link_code_to_symbols` import-fallback pattern).
 
-### v1.23.0 — Ranking-event ledger + online weight tuning
+### v1.23.0 — Ranking-event ledger + online weight tuning — ✅ SHIPPED (2026-04-26)
 **Goal:** Port jcodemunch v1.79.0 in a 1.x-safe way. New SQLite table; new MCP tool; existing tools untouched.
 
 - New `ranking_events` table in `~/.doc-index/telemetry.db` (additive — opt-in via `JDOCMUNCH_PERF_TELEMETRY=1`, same flag as analyze_perf's persistent sink).

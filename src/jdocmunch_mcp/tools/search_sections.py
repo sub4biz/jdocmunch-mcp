@@ -44,6 +44,16 @@ def search_sections(
         return {"error": f"Repo not found: {repo}"}
 
     has_emb = index._has_embeddings()
+
+    # v1.23.0: when caller leaves semantic_weight at the default 0.5, ask
+    # the tuner for a per-repo learned override. Explicit non-default
+    # values always win.
+    from ..retrieval.tuning import DEFAULT_SEMANTIC_WEIGHT, get_semantic_weight
+    if semantic_weight == DEFAULT_SEMANTIC_WEIGHT:
+        semantic_weight = get_semantic_weight(
+            f"{owner}/{name}", explicit=None, base_path=storage_path
+        )
+
     if semantic_only:
         mode = "semantic_only" if has_emb else "lexical"
     elif semantic is False:
@@ -112,6 +122,26 @@ def search_sections(
     if role:
         meta["role_filter"] = role.strip().lower()
     attach_confidence(query, results, meta)
+
+    # v1.23.0: append a ranking event for offline tuning.
+    try:
+        from ..storage.token_tracker import record_ranking_event
+        scores = [r.get("_score") for r in results if isinstance(r.get("_score"), (int, float))]
+        record_ranking_event(
+            repo=f"{owner}/{name}",
+            tool="search_sections",
+            query=query,
+            mode=mode,
+            semantic_used=mode in ("hybrid", "semantic_only"),
+            semantic_weight=semantic_weight,
+            top1_score=scores[0] if len(scores) >= 1 else None,
+            top2_score=scores[1] if len(scores) >= 2 else None,
+            confidence=meta.get("confidence"),
+            result_count=len(results),
+            base_path=storage_path,
+        )
+    except Exception:
+        pass
     if not has_emb and mode == "lexical":
         meta["tip"] = "Re-index with use_embeddings=True for semantic search (better recall on paraphrased queries)"
 
