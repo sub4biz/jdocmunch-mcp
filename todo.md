@@ -378,15 +378,25 @@ Everything from the original "v2.0.0 capstone bundle" that can be re-engineered 
 - `search_sections(repo_group="docs-everywhere", ...)` fans out across constituent indices, fuses via Reciprocal Rank Fusion (`k=60`, reuses v1.13 RRF). Existing `repo` arg unchanged.
 - New tool `list_repo_groups`.
 
-### v1.27.0+ — Phase-6 infrastructure backlog
-**Goal:** Tighten testing surface as identified in PRD §6.
+### v1.27.0 — Phase-6 infrastructure (batch 1: integrity + golden corpus) — ✅ SHIPPED (2026-04-26)
+**Goal:** Tighten testing surface — protect against the silent-corruption bug class that motivated B1/B2.
 
-- Section-boundary golden corpus.
+**Shipped:**
+- `verify_index` MCP tool + `jdocmunch-mcp verify-index` CLI subcommand. Walks every section, byte-range-reads, recomputes SHA-256, compares to stored hash. Reports drift / missing / error. Exits 2 on drift; 0 clean.
+- Section-boundary golden corpus: `tests/fixtures/golden_sections/*.json` snapshots of {id, title, level, byte_start, byte_end, content_hash, parent_id} for every file under `benchmarks/replay/corpus/`. Property test asserts current parser output matches.
+
+### v1.28.0+ — Phase-6 infrastructure backlog (remaining)
+**Goal:** Continue tightening as identified in PRD §6.
+
 - Multi-format regression suite (real-world docs as a `corpus/` git submodule).
-- Byte-offset integrity check CLI (`verify_index`).
 - Stale-index simulation tests.
-- Embedding-drift simulation suite.
+- Embedding-drift simulation suite (mock provider swap, assert canary alarm).
 - Cross-platform path test matrix (Windows/Posix).
+- Retrieval-replay log capture (opt-in JSONL append for production query analysis).
+- README.md / SPEC.md surfacing of the 1.x compatibility commitment.
+- Sphinx `.. toctree::` and VuePress sidebar JSON detection in `get_tutorial_path`.
+- OpenAPI 3.1 + Swagger 2.0 explicit replay fixtures.
+- Periodic-cron autorun of `tune_weights` inside `index_local`.
 
 ---
 

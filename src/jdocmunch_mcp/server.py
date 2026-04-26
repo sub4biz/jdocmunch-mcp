@@ -46,6 +46,7 @@ from .tools.get_tutorial_path import get_tutorial_path
 from .tools.get_undocumented_symbols import get_undocumented_symbols
 from .tools.tune_weights import tune_weights
 from .tools.repo_group_tools import list_repo_groups, define_repo_group
+from .tools.verify_index import verify_index
 
 
 server = Server("jdocmunch-mcp")
@@ -751,6 +752,24 @@ async def list_tools() -> list[Tool]:
             }
         ),
         Tool(
+            name="verify_index",
+            description=(
+                "Byte-offset integrity check. Walks every section, byte-range-reads "
+                "its current on-disk content, recomputes SHA-256, and compares to the "
+                "stored content_hash. Reports drift / missing / error counts plus the "
+                "drifting section ids. Sample N sections via the sample arg for cheap "
+                "CI checks."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string"},
+                    "sample": {"type": "integer", "description": "Only verify the first N sections."}
+                },
+                "required": ["repo"]
+            }
+        ),
+        Tool(
             name="check_embedding_drift",
             description=(
                 "Embedding-drift canary. Without args, re-embeds the saved CANARY_STRINGS "
@@ -1041,6 +1060,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 repos=arguments["repos"],
                 storage_path=storage_path,
             )
+        elif name == "verify_index":
+            result = verify_index(
+                repo=arguments["repo"],
+                sample=arguments.get("sample"),
+                storage_path=storage_path,
+            )
         else:
             result = {"error": f"Unknown tool: {name}"}
 
@@ -1178,6 +1203,15 @@ def main(argv: Optional[list] = None):
         help="Optional repo identifier override",
     )
 
+    # --- verify-index (v1.27.0) ---
+    vi_parser = subparsers.add_parser(
+        "verify-index",
+        help="Byte-offset integrity check across an indexed repo",
+    )
+    vi_parser.add_argument("--repo", required=True, help="jdocmunch repo identifier")
+    vi_parser.add_argument("--sample", type=int, default=None,
+                           help="Verify only the first N sections (cheap CI mode)")
+
     # --- hook-pretooluse ---
     subparsers.add_parser(
         "hook-pretooluse",
@@ -1233,6 +1267,12 @@ def main(argv: Optional[list] = None):
         result = index_local(path=args.path, name=args.name)
         print(json.dumps(result, indent=2))
         return
+
+    if args.command == "verify-index":
+        from .tools.verify_index import verify_index as _verify
+        result = _verify(repo=args.repo, sample=args.sample)
+        print(json.dumps(result, indent=2))
+        sys.exit(0 if result.get("drift_count", 0) == 0 else 2)
 
     if args.command == "hook-pretooluse":
         from .cli.hooks import run_pretooluse
