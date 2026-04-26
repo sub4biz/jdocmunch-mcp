@@ -338,6 +338,7 @@ class TestBM25EndToEnd:
             raw_files={"g.md": content},
             doc_types={".md": 1},
         )
+        # v2.0.0 dropped the legacy engine — request must raise loudly.
         out = search_sections(
             repo="local/repo",
             query="xyzzyfrobnicate",
@@ -345,7 +346,8 @@ class TestBM25EndToEnd:
             semantic=False,
             lexical_engine="legacy",
         )
-        assert out["_meta"]["lexical_engine"] == "legacy"
+        assert "error" in out
+        assert "legacy" in out["error"].lower() or "bm25" in out["error"].lower()
 
     def test_bm25_stats_persisted_in_index(self, tmp_path):
         store = DocStore(base_path=str(tmp_path))

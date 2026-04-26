@@ -56,15 +56,18 @@ def search_sections(
     # v1.19.0: when a role filter is requested, ask for more candidates
     # up-front so post-filter trimming doesn't starve the result set.
     fetch_n = max_results * 5 if role else max_results
-    results = index.search(
-        query,
-        doc_path=doc_path,
-        max_results=fetch_n,
-        semantic=semantic,
-        semantic_only=semantic_only,
-        semantic_weight=semantic_weight,
-        lexical_engine=lexical_engine,
-    )
+    try:
+        results = index.search(
+            query,
+            doc_path=doc_path,
+            max_results=fetch_n,
+            semantic=semantic,
+            semantic_only=semantic_only,
+            semantic_weight=semantic_weight,
+            lexical_engine=lexical_engine,
+        )
+    except ValueError as exc:
+        return {"error": str(exc), "_meta": {"lexical_engine": lexical_engine}}
 
     if role:
         role_norm = role.strip().lower()

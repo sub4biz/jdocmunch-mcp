@@ -12,6 +12,7 @@ def get_section_context(
     section_id: str,
     max_tokens: int = 2000,
     include_children: bool = True,
+    include_related: bool = False,
     storage_path: Optional[str] = None,
 ) -> dict:
     """Return a section with its surrounding hierarchy context.
@@ -93,6 +94,36 @@ def get_section_context(
                     "summary": child.get("summary", ""),
                 })
 
+    # --- v2.0.0: optional related-section summaries (adaptive context) ---
+    related = []
+    if include_related:
+        from ..retrieval.related import get_related
+
+        rel = get_related(
+            index.sections,
+            section_id,
+            mode="both" if index._has_embeddings() else "structural",
+            top_n=5,
+            min_score=0.55,
+            max_per_kind=4,
+        )
+        # Annotate each related entry with its summary so the response
+        # carries explicit context — never re-loads content for these.
+        for entry in rel.get("structural", []) + rel.get("semantic", []):
+            related_sec = index.get_section(entry["id"])
+            if not related_sec:
+                continue
+            related.append(
+                {
+                    "id": entry["id"],
+                    "title": entry["title"],
+                    "level": entry["level"],
+                    "summary": related_sec.get("summary", ""),
+                    "kind": entry.get("kind") or "semantic",
+                    "score": entry.get("score"),
+                }
+            )
+
     # --- Token savings vs full-file read ---
     doc_path = sec.get("doc_path", "")
     raw_bytes = 0
@@ -109,7 +140,7 @@ def get_section_context(
     ca = cost_avoided(tokens_saved, total)
 
     latency_ms = int((time.perf_counter() - t0) * 1000)
-    return {
+    out = {
         "ancestors": ancestors,
         "section": result_sec,
         "children": children,
@@ -121,3 +152,7 @@ def get_section_context(
             **ca,
         },
     }
+    if include_related:
+        out["related"] = related
+        out["_meta"]["related_count"] = len(related)
+    return out

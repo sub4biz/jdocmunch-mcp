@@ -104,8 +104,25 @@ def count_tokens(text: str) -> int:
 
 
 def estimate_savings(raw_bytes: int, response_bytes: int) -> int:
-    """Estimate tokens saved: (raw - response) / bytes_per_token."""
+    """Estimate tokens saved: (raw - response) / bytes_per_token.
+
+    v1.20.0: kept as a fast byte-based estimator for the hot path. For
+    accurate counts (e.g. when reporting cost) callers should pass
+    ``count_tokens(text)`` deltas directly. This function remains the
+    fall-through used by search_sections when only byte counts are
+    cheap to compute.
+    """
     return max(0, (raw_bytes - response_bytes) // _BYTES_PER_TOKEN)
+
+
+def estimate_savings_text(raw: str, response: str) -> int:
+    """Token-accurate variant of estimate_savings using count_tokens.
+
+    Falls back to the bytes/4 heuristic when ``tiktoken`` is unavailable
+    (so behavior is bounded). Use when the caller already has the strings
+    on hand and a precise number matters.
+    """
+    return max(0, count_tokens(raw or "") - count_tokens(response or ""))
 
 
 def cost_avoided(tokens_saved: int, total_tokens_saved: int) -> dict:

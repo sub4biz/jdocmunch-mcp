@@ -297,7 +297,28 @@ Each release: version bump → tests pass (`PYTHONPATH=src python -m pytest test
 
 ---
 
-### v2.0.0 — Major bet bundle + breaking-change cleanups
+### v1.20.0 — Capstone bundle (formerly scoped as v2.0.0) — ✅ SHIPPED (2026-04-26)
+**Goal:** Light up the v1.10–v1.19 foundations with related-graph navigation, drift-aware diff, health diagnostics, and a tighter retrieval surface. Major-version bump rejected as unjustified — the only user-visible breakage is `lexical_engine="legacy"` now raising; everything else is additive. Real v2.0.0 deferred until a genuinely backwards-incompatible change ships (schema bump, new MCP wire format, etc.).
+
+**Shipped:**
+- Drop legacy `lexical_engine` fallback (was deprecated in v1.12.0; now raises `ValueError`).
+- New `estimate_savings_text()` helper that uses `count_tokens` (tiktoken when available) for accurate counts.
+- `retrieval/related.py` + `get_related_sections` tool — structural (parent/child/sibling/cousin) and semantic (top-N cosine) neighbors.
+- `get_section_diff` tool — unified diff between indexed snapshot and current on-disk byte range; reports identical/divergent hashes.
+- `get_doc_health` tool — single-shot diagnostics: section_count, doc_count, role_distribution, freshness counts, broken_link_count, drift status, BM25 corpus sanity, embedding coverage.
+- `get_section_context(include_related=True)` — adaptive context budget appends related-section summaries.
+
+**Deferred to a future v2.0.0 (when other breaking changes accumulate):**
+- Online weight tuning (port jcodemunch v1.79.0 — needs a ranking-event ledger to be added first).
+- Boilerplate detector + suppression.
+- Notebook output preservation + cell-pair retrieval.
+- Cross-repo concept graph for monorepos.
+- Tutorial-path reconstruction.
+- Inverse coverage tool (`get_undocumented_symbols`).
+- Section schema bump to `INDEX_VERSION=4` with auto-migration on first load.
+- Real tiktoken-or-error replacement of the bytes/4 estimator (current additive helper preserves the heuristic).
+
+### v2.0.0 — Major bet bundle (planned, not yet scoped)
 **Goal:** Capstone release. Everything earned by v1.19.0 lights up.
 
 **Includes:**

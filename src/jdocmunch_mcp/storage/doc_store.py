@@ -124,6 +124,11 @@ class DocIndex:
     ) -> list:
         # Per-call content cache — bounded scope keeps memory predictable.
         self._content_cache = {}
+        if lexical_engine not in ("bm25",):
+            raise ValueError(
+                f"Unknown lexical_engine: {lexical_engine!r}. "
+                f"v1.20.0 dropped the legacy scorer; only 'bm25' is supported."
+            )
         self._lexical_engine = lexical_engine
         """Search sections with BM25-style lexical + optional semantic fusion.
 
@@ -306,62 +311,30 @@ class DocIndex:
         return any(t.startswith(word) for t in text.split() if len(word) >= 3)
 
     def _score_section(self, sec: dict, query_lower: str, query_words: set) -> float:
-        """Dispatch to BM25 (v1.12 default) or the legacy heuristic.
+        """BM25-Okapi scoring with tag-match kicker.
 
-        ``self._lexical_engine`` is set per-search call; default is "bm25".
-        Tags add a small kicker on top of either engine — preserves the v1.0
-        behavior that exact tag matches help.
+        v1.20.0: dropped the v1.0–v1.11 legacy heuristic fallback. Callers
+        that pass ``lexical_engine="legacy"`` now get a ValueError at search
+        time so the deprecation surfaces loudly rather than silently.
         """
-        engine = getattr(self, "_lexical_engine", "bm25")
+        from ..retrieval.bm25 import score_section as _bm25_score
 
-        if engine == "bm25":
-            from ..retrieval.bm25 import score_section as _bm25_score
+        # Provide the loader so BM25 can lazily fetch content for the
+        # content channel.
+        def _loader(doc_path: str, byte_start: int, byte_end: int) -> str:
+            fake = {"content": "", "doc_path": doc_path, "byte_start": byte_start, "byte_end": byte_end, "id": sec.get("id", "")}
+            return self._ensure_content(fake)
 
-            # Provide the loader so BM25 can lazily fetch content for the
-            # content channel.
-            def _loader(doc_path: str, byte_start: int, byte_end: int) -> str:
-                fake = {"content": "", "doc_path": doc_path, "byte_start": byte_start, "byte_end": byte_end, "id": sec.get("id", "")}
-                return self._ensure_content(fake)
-
-            score = _bm25_score(
-                sec,
-                query_lower,
-                stats=self.bm25_stats or None,
-                content_loader=_loader,
-            )
-            tags = sec.get("tags", [])
-            if tags and query_words:
-                tag_hits = sum(1 for t in tags if t.lower() in query_words)
-                score += 0.5 * tag_hits
-            return score
-
-        # Legacy v1.0–v1.11 heuristic. Kept until v2.0.0 for opt-in fallback.
-        score = 0
-        title_lower = sec.get("title", "").lower()
-        if query_lower == title_lower:
-            score += 20
-        elif query_lower in title_lower:
-            score += 10
-        for word in query_words:
-            if self._word_matches(word, title_lower):
-                score += 5
-
-        summary_lower = sec.get("summary", "").lower()
-        if query_lower in summary_lower:
-            score += 8
-        for word in query_words:
-            if self._word_matches(word, summary_lower):
-                score += 2
-
+        score = _bm25_score(
+            sec,
+            query_lower,
+            stats=self.bm25_stats or None,
+            content_loader=_loader,
+        )
         tags = sec.get("tags", [])
-        for tag in tags:
-            if tag.lower() in query_words:
-                score += 3
-
-        content_lower = self._ensure_content(sec).lower()
-        word_hits = sum(1 for w in query_words if self._word_matches(w, content_lower))
-        score += min(word_hits, 5)
-
+        if tags and query_words:
+            tag_hits = sum(1 for t in tags if t.lower() in query_words)
+            score += 0.5 * tag_hits
         return score
 
 

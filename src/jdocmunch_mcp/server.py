@@ -39,6 +39,9 @@ from .tools.openapi_tools import (
     get_schema_graph,
 )
 from .tools.glossary_tools import lookup_term, list_terms
+from .tools.get_related_sections import get_related_sections
+from .tools.get_section_diff import get_section_diff
+from .tools.get_doc_health import get_doc_health
 
 
 server = Server("jdocmunch-mcp")
@@ -292,6 +295,11 @@ async def list_tools() -> list[Tool]:
                         "type": "boolean",
                         "description": "Include immediate child section summaries (no content reads). Default true.",
                         "default": True
+                    },
+                    "include_related": {
+                        "type": "boolean",
+                        "description": "v2.0+ adaptive context: append structural + semantic neighbor summaries.",
+                        "default": False
                     }
                 },
                 "required": ["repo", "section_id"]
@@ -591,6 +599,58 @@ async def list_tools() -> list[Tool]:
             }
         ),
         Tool(
+            name="get_related_sections",
+            description=(
+                "v2.0+ related-section graph. Returns structural neighbors (siblings, "
+                "children, parent, optional cousins) and semantic neighbors (top-N "
+                "cosine over stored embeddings, score >= min_score). mode: structural "
+                "| semantic | both."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string"},
+                    "section_id": {"type": "string"},
+                    "mode": {"type": "string", "enum": ["structural", "semantic", "both"], "default": "both"},
+                    "top_n": {"type": "integer", "default": 5},
+                    "min_score": {"type": "number", "default": 0.6},
+                    "max_per_kind": {"type": "integer", "default": 10}
+                },
+                "required": ["repo", "section_id"]
+            }
+        ),
+        Tool(
+            name="get_section_diff",
+            description=(
+                "Unified diff between the indexed snapshot and the current on-disk byte "
+                "range for a section. Returns hashes + diff text; identical=true when "
+                "the section is in sync with disk."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string"},
+                    "section_id": {"type": "string"}
+                },
+                "required": ["repo", "section_id"]
+            }
+        ),
+        Tool(
+            name="get_doc_health",
+            description=(
+                "One-shot index health diagnostics. Returns section_count, doc_count, "
+                "role_distribution, freshness counts, broken_link_count, drift status, "
+                "BM25 corpus sanity, and embedding coverage."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string"}
+                },
+                "required": ["repo"]
+            }
+        ),
+        Tool(
             name="check_embedding_drift",
             description=(
                 "Embedding-drift canary. Without args, re-embeds the saved CANARY_STRINGS "
@@ -722,6 +782,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 section_id=arguments["section_id"],
                 max_tokens=arguments.get("max_tokens", 2000),
                 include_children=arguments.get("include_children", True),
+                include_related=arguments.get("include_related", False),
                 storage_path=storage_path,
             )
         elif name == "delete_index":
@@ -825,6 +886,27 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 repo=arguments["repo"],
                 prefix=arguments.get("prefix"),
                 max_results=arguments.get("max_results", 100),
+                storage_path=storage_path,
+            )
+        elif name == "get_related_sections":
+            result = get_related_sections(
+                repo=arguments["repo"],
+                section_id=arguments["section_id"],
+                mode=arguments.get("mode", "both"),
+                top_n=arguments.get("top_n", 5),
+                min_score=arguments.get("min_score", 0.6),
+                max_per_kind=arguments.get("max_per_kind", 10),
+                storage_path=storage_path,
+            )
+        elif name == "get_section_diff":
+            result = get_section_diff(
+                repo=arguments["repo"],
+                section_id=arguments["section_id"],
+                storage_path=storage_path,
+            )
+        elif name == "get_doc_health":
+            result = get_doc_health(
+                repo=arguments["repo"],
                 storage_path=storage_path,
             )
         else:
