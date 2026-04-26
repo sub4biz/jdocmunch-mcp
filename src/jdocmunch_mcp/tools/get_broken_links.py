@@ -47,21 +47,33 @@ def _resolve_file_path(source_doc: str, target_file: str) -> str:
 
 
 def _anchor_matches_section(anchor: str, doc_path: str, sections: list) -> bool:
-    """Return True if any section in doc_path has a slug matching the anchor."""
-    slug_lower = anchor.lower().replace("-", "").replace("_", "")
+    """Return True if any section in doc_path has a slug matching the anchor.
+
+    Comparison is case-insensitive but preserves hyphens and underscores —
+    'foo-bar' must NOT match 'foobar'. The hierarchical slug stored in the
+    section ID (e.g. ``installation/prerequisites``) is canonical; anchors
+    typically reference only the leaf, so we accept either the full path or
+    the trailing path segment.
+    """
+    target = anchor.strip().lower()
+    if not target:
+        return False
     for sec in sections:
         if sec.get("doc_path") != doc_path:
             continue
         # Section ID format: repo::doc_path::slug#level
         raw_id = sec.get("id", "")
         slug_part = raw_id.split("::")[-1].split("#")[0] if "::" in raw_id else ""
-        slug_norm = slug_part.lower().replace("-", "").replace("_", "")
-        if slug_norm == slug_lower:
+        slug_lower = slug_part.lower()
+        if slug_lower == target:
             return True
-        # Also check title slug directly
-        title = sec.get("title", "").lower().replace(" ", "-")
-        title_norm = title.replace("-", "").replace("_", "")
-        if title_norm == slug_lower:
+        # Hierarchical slugs encode ancestor chain ('install/prereqs'); accept the leaf.
+        leaf = slug_lower.rsplit("/", 1)[-1]
+        if leaf == target:
+            return True
+        # Also accept the title rendered through the same slugify rules used at parse time.
+        from ..parser.sections import slugify
+        if slugify(sec.get("title", "")) == target:
             return True
     return False
 

@@ -174,24 +174,56 @@ class _SentenceTransformersProvider:
 # Public API
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Provider cache (B7) — avoid re-instantiation on every search query.
+#
+# A factory map is exposed so tests can stub providers; production code reads
+# only via _get_provider().
+# ---------------------------------------------------------------------------
+
+_PROVIDER_FACTORIES: dict = {
+    "gemini": _GeminiProvider,
+    "openai": _OpenAIProvider,
+    "sentence-transformers": _SentenceTransformersProvider,
+}
+
+# Cache: {(provider_name, model_signature): provider_instance}
+_PROVIDER_CACHE: dict = {}
+
+
+def _provider_signature(name: str) -> tuple:
+    """Compute a cache key that invalidates when env-driven model choice changes."""
+    if name == "sentence-transformers":
+        return (name, os.environ.get("JDOCMUNCH_ST_MODEL", _SentenceTransformersProvider.DEFAULT_MODEL))
+    if name == "gemini":
+        return (name, _GeminiProvider.MODEL, os.environ.get("GOOGLE_API_KEY", "")[:8])
+    if name == "openai":
+        return (name, _OpenAIProvider.MODEL, os.environ.get("OPENAI_API_KEY", "")[:8])
+    return (name,)
+
+
+def _reset_provider_cache() -> None:
+    """Test hook — clears the provider cache."""
+    _PROVIDER_CACHE.clear()
+
+
 def _get_provider():
     name = get_provider_name()
-    if name == "gemini":
-        try:
-            return _GeminiProvider()
-        except Exception:
-            return None
-    if name == "openai":
-        try:
-            return _OpenAIProvider()
-        except Exception:
-            return None
-    if name == "sentence-transformers":
-        try:
-            return _SentenceTransformersProvider()
-        except Exception:
-            return None
-    return None
+    if not name:
+        return None
+    factory = _PROVIDER_FACTORIES.get(name)
+    if not factory:
+        return None
+    key = _provider_signature(name)
+    cached = _PROVIDER_CACHE.get(key)
+    if cached is not None:
+        return cached
+    try:
+        instance = factory()
+    except Exception:
+        return None
+    _PROVIDER_CACHE[key] = instance
+    return instance
 
 
 def embed_sections(sections: list) -> list:

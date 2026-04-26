@@ -66,6 +66,8 @@ from .sections import (
 _ATX_RE = re.compile(r"^(#{1,6})\s+(.+?)(?:\s+#+\s*)?$")
 _SETEXT_H1_RE = re.compile(r"^=+\s*$")
 _SETEXT_H2_RE = re.compile(r"^-+\s*$")
+# Code-fence delimiters per CommonMark: 3+ backticks or 3+ tildes, optional info string.
+_FENCE_OPEN_RE = re.compile(r"^(`{3,}|~{3,})\s*[\w.+-]*\s*$")
 
 
 def parse_markdown(content: str, doc_path: str, repo: str) -> list:
@@ -124,16 +126,58 @@ def parse_markdown(content: str, doc_path: str, repo: str) -> list:
     prev_line: str = ""
     prev_byte_start: int = 0
 
+    # Fenced-code-block state (B2). When inside a fence, ATX and setext
+    # detection are suppressed so '# comment' inside code does not become
+    # a phantom section.
+    in_fence: bool = False
+    fence_char: str = ""
+    fence_len: int = 0
+
     for i, line in enumerate(lines):
         line_bytes = len(line.encode("utf-8"))
         line_stripped = line.rstrip("\n").rstrip("\r")
 
-        # Check for setext heading (underline of previous line)
-        if i > 0 and _SETEXT_H1_RE.match(line_stripped) and prev_line.strip():
-            heading_text = prev_line.strip()
+        # --- Fence state machine (B2) ---
+        if in_fence:
+            # Match a closing fence: same char, length >= opening length.
+            stripped_left = line_stripped.lstrip()
+            if stripped_left and stripped_left[0] == fence_char:
+                run = len(stripped_left) - len(stripped_left.lstrip(fence_char))
+                if run >= fence_len and stripped_left[run:].strip() == "":
+                    in_fence = False
+                    fence_char = ""
+                    fence_len = 0
+            # Whether opening or closing, lines inside a fence are body content,
+            # not headings. Append and advance.
+            current_lines.append(line)
+            prev_line = line_stripped
+            prev_byte_start = byte_cursor
+            byte_cursor += line_bytes
+            continue
+
+        fence_open_match = _FENCE_OPEN_RE.match(line_stripped)
+        if fence_open_match:
+            marker = fence_open_match.group(1)
+            in_fence = True
+            fence_char = marker[0]
+            fence_len = len(marker)
+            current_lines.append(line)
+            prev_line = line_stripped
+            prev_byte_start = byte_cursor
+            byte_cursor += line_bytes
+            continue
+        # --- end fence handling ---
+
+        # Setext heading detection (with B3 guards: reject when prev_line is
+        # blank or table-like — '|' present means we're inside a table).
+        prev_clean = prev_line.strip()
+        prev_is_setext_candidate = bool(prev_clean) and "|" not in prev_clean
+
+        if i > 0 and _SETEXT_H1_RE.match(line_stripped) and prev_is_setext_candidate:
+            heading_text = prev_clean
             heading_level = 1
-        elif i > 0 and _SETEXT_H2_RE.match(line_stripped) and prev_line.strip() and len(line_stripped) >= 2:
-            heading_text = prev_line.strip()
+        elif i > 0 and _SETEXT_H2_RE.match(line_stripped) and prev_is_setext_candidate and len(line_stripped) >= 2:
+            heading_text = prev_clean
             heading_level = 2
         else:
             heading_text = None

@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import shutil
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -16,7 +17,25 @@ INDEX_VERSION = 2
 
 # Module-level LRU cache: {(str(index_path), mtime_ns): DocIndex}
 # Keyed by path + mtime so the entry auto-invalidates whenever the file changes.
-_INDEX_CACHE: dict = {}
+# Bounded to prevent leaks in long-running MCP servers.
+_INDEX_CACHE_MAXSIZE = 8
+_INDEX_CACHE: "OrderedDict[tuple, DocIndex]" = OrderedDict()
+
+
+def _index_cache_get(key: tuple):
+    """LRU lookup — moves the entry to the most-recently-used end on hit."""
+    val = _INDEX_CACHE.get(key)
+    if val is not None:
+        _INDEX_CACHE.move_to_end(key)
+    return val
+
+
+def _index_cache_put(key: tuple, value) -> None:
+    """LRU insert — evicts oldest when over capacity."""
+    _INDEX_CACHE[key] = value
+    _INDEX_CACHE.move_to_end(key)
+    while len(_INDEX_CACHE) > _INDEX_CACHE_MAXSIZE:
+        _INDEX_CACHE.popitem(last=False)
 
 
 def _file_hash(content: str) -> str:
@@ -48,6 +67,39 @@ class DocIndex:
     def __post_init__(self) -> None:
         # Build O(1) lookup dict once at load time
         self._section_index: dict = {s["id"]: s for s in self.sections if "id" in s}
+        # Lazy content loader injected by DocStore.load_index. Signature:
+        #   loader(doc_path: str, byte_start: int, byte_end: int) -> str
+        # Returns "" on failure. Set to None when no loader is available
+        # (e.g. in-memory tests that build a DocIndex directly).
+        self._content_loader = None  # type: ignore[var-annotated]
+        # Per-search content cache: section_id -> str. Cleared between searches.
+        self._content_cache: dict = {}
+
+    def _ensure_content(self, sec: dict) -> str:
+        """Return section content, loading from disk lazily if missing.
+
+        Sections persisted to JSON do NOT carry their content (Section.to_dict
+        intentionally drops it to keep the index small). Lexical scoring used
+        to silently read sec.get("content","") and always score zero on the
+        content channel. This restores correctness via byte-range reads through
+        the loader injected by DocStore.
+        """
+        body = sec.get("content")
+        if body:
+            return body
+        sec_id = sec.get("id", "")
+        if sec_id and sec_id in self._content_cache:
+            return self._content_cache[sec_id]
+        loader = self._content_loader
+        if loader is None:
+            return ""
+        try:
+            text = loader(sec.get("doc_path", ""), int(sec.get("byte_start", 0)), int(sec.get("byte_end", 0)))
+        except Exception:
+            text = ""
+        if sec_id:
+            self._content_cache[sec_id] = text or ""
+        return text or ""
 
     def get_section(self, section_id: str) -> Optional[dict]:
         """Find a section dict by ID (O(1))."""
@@ -66,6 +118,8 @@ class DocIndex:
         semantic_only: bool = False,
         semantic_weight: float = 0.5,
     ) -> list:
+        # Per-call content cache — bounded scope keeps memory predictable.
+        self._content_cache = {}
         """Search sections with BM25-style lexical + optional semantic fusion.
 
         Params:
@@ -210,7 +264,12 @@ class DocIndex:
             if tag.lower() in query_words:
                 score += 3
 
-        content_lower = sec.get("content", "").lower()
+        # Cheap title/summary prune before paying for content load (B1).
+        cheap_score = score
+        if cheap_score == 0 and not any(self._word_matches(w, title_lower) or self._word_matches(w, summary_lower) for w in query_words):
+            # Still allow content-only matches to score; load lazily.
+            pass
+        content_lower = self._ensure_content(sec).lower()
         word_hits = sum(1 for w in query_words if self._word_matches(w, content_lower))
         score += min(word_hits, 5)
 
@@ -316,7 +375,7 @@ class DocStore:
 
         mtime_ns = index_path.stat().st_mtime_ns
         cache_key = (str(index_path), mtime_ns)
-        cached = _INDEX_CACHE.get(cache_key)
+        cached = _index_cache_get(cache_key)
         if cached is not None:
             return cached
 
@@ -340,7 +399,27 @@ class DocStore:
             file_hashes=data.get("file_hashes", {}),
             head_sha=data.get("head_sha"),
         )
-        _INDEX_CACHE[cache_key] = index
+
+        # Inject lazy content loader so search can score on body text (B1).
+        owner_str, name_str = owner, name
+        content_dir = self._content_dir(owner_str, name_str)
+
+        def _loader(doc_path: str, byte_start: int, byte_end: int) -> str:
+            if not doc_path or byte_end <= byte_start:
+                return ""
+            file_path = self._safe_content_path(content_dir, doc_path)
+            if not file_path or not file_path.exists():
+                return ""
+            try:
+                with open(file_path, "rb") as fh:
+                    fh.seek(byte_start)
+                    raw = fh.read(byte_end - byte_start)
+                return raw.decode("utf-8", errors="replace")
+            except OSError:
+                return ""
+
+        index._content_loader = _loader
+        _index_cache_put(cache_key, index)
         return index
 
     def detect_changes(
