@@ -226,24 +226,104 @@ def _get_provider():
     return instance
 
 
-def embed_sections(sections: list) -> list:
+def _provider_identity(name: str) -> tuple[str, Optional[int]]:
+    """Return ``(model_name, dim)`` for the active provider.
+
+    Used by the embedding cache to validate the sidecar's identity header.
+    Dim is best-effort: providers expose it as a class constant when known,
+    otherwise None and the cache treats the dim slot as wildcard.
+    """
+    if name == "gemini":
+        return (_GeminiProvider.MODEL, 768)
+    if name == "openai":
+        return (_OpenAIProvider.MODEL, 1536)
+    if name == "sentence-transformers":
+        return (
+            os.environ.get("JDOCMUNCH_ST_MODEL", _SentenceTransformersProvider.DEFAULT_MODEL),
+            None,
+        )
+    return (name, None)
+
+
+def embed_sections(
+    sections: list,
+    *,
+    owner: Optional[str] = None,
+    name: Optional[str] = None,
+    storage_path: Optional[str] = None,
+) -> list:
     """Generate and attach embeddings to sections in-place.
 
-    Mirrors the summarize_sections() interface — modifies and returns the list.
-    Silently degrades (leaves embedding=None) if no provider is configured.
+    When ``owner`` and ``name`` are supplied, looks up cached vectors keyed
+    by ``content_hash`` from ``~/.doc-index/<owner>/<name>.embeddings.jsonl``.
+    Only cache misses are sent to the provider — typical incremental
+    re-indexes touch <10% of sections, so cache hit-rate dominates cost.
+
+    Cache header records (provider, model, dim); a mismatch on load
+    purges the file and forces a full re-embed.
+
+    Silently degrades to no-embeddings when no provider is configured.
+    Backward-compatible with the v1.0–v1.14 signature
+    ``embed_sections(sections)`` — caching is opt-in via owner+name.
     """
     provider = _get_provider()
     if not provider:
         return sections
 
-    texts = [_section_embed_text(s) for s in sections]
-    try:
-        embeddings = provider.embed_texts(texts, task_type="retrieval_document")
-        for sec, emb in zip(sections, embeddings):
-            if emb:
-                sec.embedding = emb
-    except Exception:
-        pass  # lexical search still works
+    provider_name = get_provider_name() or ""
+    model, dim = _provider_identity(provider_name)
+
+    cache_enabled = bool(owner and name)
+    if cache_enabled:
+        from . import cache as _cache  # local import to avoid circulars
+        cached = _cache.load(
+            storage_path, owner, name,
+            provider=provider_name, model=model, dim=dim,
+        )
+    else:
+        cached = {}
+
+    # First pass: split sections into cache-hits and misses.
+    misses: list = []
+    miss_indices: list[int] = []
+    for i, sec in enumerate(sections):
+        h = getattr(sec, "content_hash", "") or ""
+        vec = cached.get(h) if h else None
+        if vec:
+            sec.embedding = vec
+        else:
+            misses.append(sec)
+            miss_indices.append(i)
+
+    # Second pass: embed misses in one provider batch.
+    if misses:
+        texts = [_section_embed_text(s) for s in misses]
+        try:
+            embeddings = provider.embed_texts(texts, task_type="retrieval_document")
+            for sec, emb in zip(misses, embeddings):
+                if emb:
+                    sec.embedding = emb
+        except Exception:
+            pass  # lexical search still works
+
+    # Rewrite cache when enabled — gathers all current (hash, vector) pairs.
+    if cache_enabled:
+        from . import cache as _cache
+        entries = []
+        for sec in sections:
+            h = getattr(sec, "content_hash", "") or ""
+            vec = getattr(sec, "embedding", None)
+            if h and vec:
+                entries.append((h, list(vec)))
+        if entries:
+            try:
+                _cache.write(
+                    storage_path, owner, name,
+                    provider=provider_name, model=model, dim=dim,
+                    entries=entries,
+                )
+            except Exception:
+                pass
 
     return sections
 

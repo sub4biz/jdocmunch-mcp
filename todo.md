@@ -165,7 +165,7 @@ Each release: version bump → tests pass (`PYTHONPATH=src python -m pytest test
 
 ---
 
-### v1.15.0 — Content-hash-keyed embedding cache + drift canary
+### v1.15.0 — Content-hash-keyed embedding cache + drift canary — ✅ SHIPPED (2026-04-26)
 **Goal:** Cut embedding cost 60–95% on doc churn; detect provider/model regressions.
 
 **Embedding cache:**

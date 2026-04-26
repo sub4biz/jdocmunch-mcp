@@ -232,7 +232,10 @@ def index_local(
 
             new_sections = summarize_sections(new_sections, use_ai=use_ai_summaries)
             if use_embeddings:
-                new_sections = embed_sections(new_sections)
+                new_sections = embed_sections(
+                    new_sections,
+                    owner=owner, name=repo_name, storage_path=storage_path,
+                )
 
             updated = store.incremental_save(
                 owner=owner, name=repo_name,
@@ -279,7 +282,10 @@ def index_local(
 
         all_sections = summarize_sections(all_sections, use_ai=use_ai_summaries)
         if use_embeddings:
-            all_sections = embed_sections(all_sections)
+            all_sections = embed_sections(
+                all_sections,
+                owner=owner, name=repo_name, storage_path=storage_path,
+            )
 
         saved = store.save_index(
             owner=owner,

@@ -29,6 +29,7 @@ from .tools.get_stale_pages import get_stale_pages
 from .tools.get_wiki_stats import get_wiki_stats
 from .tools.analyze_perf import analyze_perf
 from .tools.get_session_stats import get_session_stats
+from .tools.check_embedding_drift import check_embedding_drift
 
 
 server = Server("jdocmunch-mcp")
@@ -439,6 +440,36 @@ async def list_tools() -> list[Tool]:
                 "properties": {}
             }
         ),
+        Tool(
+            name="check_embedding_drift",
+            description=(
+                "Embedding-drift canary. Without args, re-embeds the saved CANARY_STRINGS "
+                "and reports per-canary cosine drift; alarm fires when max_drift > threshold "
+                "(default 0.05 ≈ cosine<0.95). Pass capture=true to seed the snapshot first "
+                "(idempotent unless force=true). Catches silent provider model upgrades that "
+                "would otherwise corrupt index recall without changing dim."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "capture": {
+                        "type": "boolean",
+                        "default": False,
+                        "description": "Embed CANARY_STRINGS and persist the snapshot."
+                    },
+                    "force": {
+                        "type": "boolean",
+                        "default": False,
+                        "description": "With capture=true, overwrite an existing snapshot."
+                    },
+                    "threshold": {
+                        "type": "number",
+                        "default": 0.05,
+                        "description": "Max allowed drift (1 - cosine). Default 0.05."
+                    }
+                }
+            }
+        ),
     ]
 
 
@@ -582,6 +613,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             )
         elif name == "get_session_stats":
             result = get_session_stats(storage_path=storage_path)
+        elif name == "check_embedding_drift":
+            result = check_embedding_drift(
+                capture=arguments.get("capture", False),
+                force=arguments.get("force", False),
+                threshold=arguments.get("threshold", 0.05),
+                storage_path=storage_path,
+            )
         else:
             result = {"error": f"Unknown tool: {name}"}
 
