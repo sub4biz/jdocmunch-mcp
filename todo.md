@@ -2,8 +2,21 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.39.0)
-**Status:** v1.10.0–v1.39.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.40.0)
+**Status:** v1.10.0–v1.40.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.40.0 — get_section_path + doc_health orphan rollup — ✅ SHIPPED (2026-04-26)
+**Goal:** Two small additive wins. (a) New `get_section_path` tool walks `parent_id` upward and returns the breadcrumb (root → … → target) handle-only. Cycle-protected. (b) `get_doc_health` now includes `orphan_section_count` from v1.39's `get_orphan_sections` — completes the doc-health rollup.
+
+**Deliverables:**
+- New `tools/get_section_path.py`. Returns `{path:[handles], depth, doc_path, section_id}`.
+- `get_doc_health` calls `get_orphan_sections` best-effort and surfaces `orphan_section_count`.
+- Registered as 40th MCP tool.
+- 7 tests in `tests/test_v1_40_0.py` covering breadcrumb shape, depth invariant, deep-chain ordering, cycle protection, doc-health orphan integration.
+- `tests/test_server.py` tool count 39 → 40.
+
+**Replay gate:** all 7 fixtures pass at 1.0 nDCG/MRR/Recall vs v1.39.0.
+**Tests:** 951 → 959 (+8).
 
 ### v1.39.0 — get_orphan_sections doc-rot finder — ✅ SHIPPED (2026-04-26)
 **Goal:** Surface sections nobody links to. Inverts the link graph once and reports every section whose `doc_path` receives zero inbound references from any other doc. Companion to `get_broken_links` (links pointing nowhere) and `get_stale_pages` (sections drifting from source) — together the doc-health triad.

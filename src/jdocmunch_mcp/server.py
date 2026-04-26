@@ -24,6 +24,7 @@ from .tools.get_section_context import get_section_context
 from .tools.section_neighbors import section_neighbors
 from .tools.get_section_summary import get_section_summary
 from .tools.get_orphan_sections import get_orphan_sections
+from .tools.get_section_path import get_section_path
 from .tools.delete_index import delete_index
 from .tools.get_broken_links import get_broken_links
 from .tools.get_doc_coverage import get_doc_coverage
@@ -372,6 +373,24 @@ async def list_tools() -> list[Tool]:
         Tool(
             name="section_neighbors",
             description="v1.37+ — return prev/next siblings (in document order), parent, and first child for a section. Handles only (id, title, level, doc_path) — no content. Use for fast sequential navigation without re-querying search_sections.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "Repository identifier (owner/repo or just repo name)"
+                    },
+                    "section_id": {
+                        "type": "string",
+                        "description": "Target section ID from get_toc, search_sections, etc."
+                    }
+                },
+                "required": ["repo", "section_id"]
+            }
+        ),
+        Tool(
+            name="get_section_path",
+            description="v1.40+ — return the breadcrumb chain (root → ... → target) for a section_id. Walks parent_id upward; cycle-protected. Handles only ({id, title, level, doc_path}) per step plus depth.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -1027,6 +1046,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             result = get_orphan_sections(
                 repo=arguments["repo"],
                 include_same_doc=arguments.get("include_same_doc", False),
+                storage_path=storage_path,
+            )
+        elif name == "get_section_path":
+            result = get_section_path(
+                repo=arguments["repo"],
+                section_id=arguments["section_id"],
                 storage_path=storage_path,
             )
         elif name == "delete_index":

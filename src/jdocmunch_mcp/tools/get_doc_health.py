@@ -62,6 +62,17 @@ def get_doc_health(
     except Exception:
         pass
 
+    # v1.40.0: orphan sections — best-effort delegate to v1.39 tool.
+    orphan_count = -1
+    try:
+        from .get_orphan_sections import get_orphan_sections
+
+        orph = get_orphan_sections(repo=f"{owner}/{name}", storage_path=storage_path)
+        if isinstance(orph, dict) and "result" in orph:
+            orphan_count = int(orph["result"].get("orphan_count", 0))
+    except Exception:
+        pass
+
     # Embedding-drift canary.
     drift_alarm = None
     drift_max = None
@@ -95,6 +106,7 @@ def get_doc_health(
         "role_distribution": roles,
         "freshness": fresh_counts,
         "broken_link_count": broken_link_count,
+        "orphan_section_count": orphan_count,
         "drift": {"has_canary": drift_alarm is not None, "alarm": drift_alarm, "max_drift": drift_max},
         "bm25": bm25_summary,
         "embeddings": {"present": has_emb, "covered_sections": embedding_count},
