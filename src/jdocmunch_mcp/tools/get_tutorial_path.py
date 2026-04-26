@@ -23,6 +23,7 @@ keeps pathological inputs bounded.
 
 from __future__ import annotations
 
+import posixpath
 import re
 import time
 from pathlib import Path
@@ -139,6 +140,193 @@ def _inline_link_chain(store, owner: str, name: str, start_doc: str, doc_paths: 
     return chain if len(chain) > 1 else []
 
 
+# Sphinx ``.. toctree::`` directive — captures the indented entry block.
+# Entries can be plain doc names (without extension), referenced labels,
+# or "label <doc>" forms. Common options (``:maxdepth:``, ``:caption:``,
+# ``:hidden:``, ``:glob:``) appear before the entry list and must be
+# tolerated.
+_TOCTREE_RE = re.compile(
+    r"(?m)^\.\.\s+toctree::\s*\n((?:[ \t]+.*\n?|\n)+)",
+)
+
+
+def _toctree_chain(store, owner: str, name: str, start_doc: str, doc_paths: set) -> list[str]:
+    """Sphinx-style ``.. toctree::`` chain.
+
+    Strategy: scan start_doc for a toctree block, extract its entries,
+    resolve them against the index (try doc_path verbatim, with .rst,
+    with .md, with /index.rst, etc.), and return the chain. Recursion
+    into the resolved docs would be possible (toctrees can chain) but
+    we keep it simple: one toctree, one chain.
+    """
+    text = _content_of(store, owner, name, start_doc)
+    if not text:
+        return []
+    m = _TOCTREE_RE.search(text)
+    if not m:
+        return []
+    block = m.group(1)
+    chain = [start_doc]
+    seen = {start_doc}
+    for raw in block.splitlines():
+        stripped = raw.strip()
+        if not stripped:
+            continue
+        # Skip directive options like ":maxdepth: 2", ":hidden:", ":glob:".
+        if stripped.startswith(":") and stripped.endswith(":"):
+            continue
+        if stripped.startswith(":"):
+            continue
+        # "Display label <real-doc>" — extract the angle-bracket target.
+        if "<" in stripped and stripped.endswith(">"):
+            stripped = stripped.rsplit("<", 1)[1].rstrip(">").strip()
+        # Try a series of likely resolutions.
+        candidates = [
+            stripped,
+            stripped + ".rst",
+            stripped + ".md",
+            posixpath.join(stripped, "index.rst") if "/" not in stripped else stripped,
+            posixpath.join(stripped, "index.md") if "/" not in stripped else stripped,
+        ]
+        # Resolve relative to start_doc's dir as well.
+        src_dir = posixpath.dirname(start_doc.replace("\\", "/"))
+        more_candidates = []
+        for c in candidates:
+            if src_dir:
+                more_candidates.append(posixpath.normpath(posixpath.join(src_dir, c)))
+        candidates.extend(more_candidates)
+
+        resolved = None
+        for c in candidates:
+            if c in doc_paths:
+                resolved = c
+                break
+        if not resolved or resolved in seen:
+            continue
+        chain.append(resolved)
+        seen.add(resolved)
+        if len(chain) >= _MAX_CHAIN:
+            break
+    return chain if len(chain) > 1 else []
+
+
+def _vuepress_chain(store, owner: str, name: str, start_doc: str, doc_paths: set) -> list[str]:
+    """VuePress-style sidebar config chain.
+
+    Looks for a sibling ``.vuepress/config.json`` (or ``config.js`` we'll
+    parse heuristically) listing sidebar entries. Modern VuePress uses
+    ``themeConfig.sidebar`` with arrays of paths or {text, link} objects.
+    We support the JSON form only — the JS form requires a parser we
+    don't ship.
+    """
+    import json
+
+    # Walk parents to find a `.vuepress/config.json`.
+    src_norm = start_doc.replace("\\", "/")
+    parts = src_norm.split("/")
+    cfg_paths_to_try = []
+    for i in range(len(parts), 0, -1):
+        prefix = "/".join(parts[:i - 1]) if i > 1 else ""
+        cand = posixpath.join(prefix, ".vuepress", "config.json").lstrip("/")
+        cfg_paths_to_try.append(cand)
+    cfg_paths_to_try.append(".vuepress/config.json")
+
+    cfg_text = None
+    for cand in cfg_paths_to_try:
+        if cand in doc_paths:
+            cfg_text = _content_of(store, owner, name, cand)
+            if cfg_text:
+                break
+    if not cfg_text:
+        return []
+
+    sidebar_paths: list[str] = []
+
+    # Fast path: cfg_text is still raw JSON.
+    parsed_json = None
+    try:
+        parsed_json = json.loads(cfg_text)
+    except Exception:
+        parsed_json = None
+
+    if isinstance(parsed_json, dict):
+        sidebar = (parsed_json.get("themeConfig") or {}).get("sidebar")
+        if sidebar is None:
+            sidebar = parsed_json.get("sidebar")
+        if sidebar is None:
+            return []
+
+        def _walk(node):
+            if isinstance(node, str):
+                sidebar_paths.append(node)
+            elif isinstance(node, dict):
+                link = node.get("link") or node.get("path")
+                if isinstance(link, str):
+                    sidebar_paths.append(link)
+                children = node.get("children") or node.get("items")
+                if isinstance(children, list):
+                    for c in children:
+                        _walk(c)
+            elif isinstance(node, list):
+                for c in node:
+                    _walk(c)
+
+        _walk(sidebar)
+    else:
+        # Slow path: ``convert_json`` rewrote the .json file into a markdown
+        # document at index time. Walk the lines after a ``### sidebar`` (or
+        # similarly-named) heading and pull bullet-list entries.
+        in_sidebar = False
+        for line in cfg_text.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            # Heading line — toggle in_sidebar based on whether this is
+            # the section we want.
+            if stripped.startswith("#"):
+                title = stripped.lstrip("#").strip().lower()
+                in_sidebar = title.endswith("sidebar")
+                continue
+            if not in_sidebar:
+                continue
+            # Bullet entry. ``convert_json`` emits dict child entries as
+            # nested headings, so the flat-string sidebar form lands as
+            # plain bullets here.
+            if stripped.startswith("-"):
+                value = stripped.lstrip("-").strip()
+                if value.startswith("`") and value.endswith("`"):
+                    value = value.strip("`").strip()
+                if value:
+                    sidebar_paths.append(value)
+
+    # Map each sidebar entry to an indexed doc_path. VuePress paths are
+    # often "/", "/install/", or "/api/auth.html" — try several resolutions.
+    def _resolve(p: str) -> Optional[str]:
+        p = p.lstrip("/")
+        candidates = [
+            p,
+            p + ".md",
+            posixpath.join(p, "README.md") if not p.endswith(".md") else p,
+            posixpath.join(p, "index.md") if not p.endswith(".md") else p,
+            p.rstrip("/") + ".md",
+        ]
+        for c in candidates:
+            if c in doc_paths:
+                return c
+        return None
+
+    resolved_paths: list[str] = []
+    for raw in sidebar_paths:
+        resolved = _resolve(raw)
+        if resolved and resolved not in resolved_paths:
+            resolved_paths.append(resolved)
+
+    if start_doc not in resolved_paths:
+        return []
+    start_idx = resolved_paths.index(start_doc)
+    return resolved_paths[start_idx:]
+
+
 def _ordered_filename_chain(start_doc: str, doc_paths: set) -> list[str]:
     """Build the chain from start_doc by ordered numeric filename prefix."""
     import posixpath
@@ -191,6 +379,8 @@ def get_tutorial_path(
     for fn, label in (
         (_frontmatter_chain, "frontmatter"),
         (_inline_link_chain, "inline_link"),
+        (_toctree_chain, "sphinx_toctree"),
+        (_vuepress_chain, "vuepress_sidebar"),
     ):
         result = fn(store, owner, name, start_doc, doc_paths_set)
         if result:

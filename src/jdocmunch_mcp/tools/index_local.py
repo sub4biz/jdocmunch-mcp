@@ -134,6 +134,7 @@ def index_local(
     follow_symlinks: bool = False,
     incremental: bool = True,
     max_files: int = 500,
+    autotune: bool = False,
 ) -> dict:
     """Index a local folder containing documentation files.
 
@@ -312,6 +313,20 @@ def index_local(
         except Exception:
             pass
 
+        # v1.29.0: opt-in autotune. Runs the v1.23 weight tuner on this
+        # repo's accumulated ranking events; no-op when telemetry isn't
+        # enabled. Failures swallowed.
+        autotune_result = None
+        if autotune:
+            try:
+                from .tune_weights import tune_weights as _tune_weights
+                autotune_result = _tune_weights(
+                    repo=f"{owner}/{repo_name}",
+                    storage_path=storage_path,
+                )
+            except Exception:
+                autotune_result = None
+
         saved = store.save_index(
             owner=owner,
             name=repo_name,
@@ -333,6 +348,8 @@ def index_local(
             "semantic_search": use_embeddings and get_provider_name() is not None,
             "_meta": {"latency_ms": latency_ms},
         }
+        if autotune_result is not None:
+            result["autotune"] = autotune_result
 
         if warnings:
             result["warnings"] = warnings

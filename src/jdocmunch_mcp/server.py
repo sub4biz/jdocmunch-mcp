@@ -98,6 +98,11 @@ async def list_tools() -> list[Tool]:
                         "type": "boolean",
                         "description": "When true (default), only re-index files that changed since the last index. Set to false to force a full re-index.",
                         "default": True
+                    },
+                    "autotune": {
+                        "type": "boolean",
+                        "description": "v1.29+ — when true, runs tune_weights against accumulated ranking events at the end of indexing. No-op when telemetry isn't enabled.",
+                        "default": False
                     }
                 },
                 "required": ["path"]
@@ -842,6 +847,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 follow_symlinks=arguments.get("follow_symlinks", False),
                 incremental=arguments.get("incremental", True),
                 max_files=arguments.get("max_files", 500),
+                autotune=arguments.get("autotune", False),
             )
         elif name in ("doc_index_repo", "index_repo"):  # index_repo kept for backward compat
             result = await index_repo(

@@ -24,11 +24,11 @@ jobs:
 
       - name: Run all replay-fixture gates
         run: |
-          for fixture in self_v1_11_0 markdown_realworld rst_realworld openapi_realworld notebook_realworld; do
+          for fixture in self_v1_11_0 markdown_realworld rst_realworld openapi_realworld notebook_realworld openapi31_realworld swagger20_realworld; do
             echo "=== ${fixture} ==="
             uv run python -m benchmarks.replay.run_replay \
               --fixture "${fixture}" \
-              --baseline 1.21.0 \
+              --baseline 1.29.0 \
               --gate 0.02
           done
         env:

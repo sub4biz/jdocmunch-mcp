@@ -391,15 +391,18 @@ Everything from the original "v2.0.0 capstone bundle" that can be re-engineered 
 - Cross-platform path matrix — `_safe_content_path` resolves nested doc paths within root and rejects traversal; `index_local` round-trip with deep nesting confirmed; stored `doc_path` always uses posix separators.
 - Retrieval-replay log capture (opt-in via `JDOCMUNCH_REPLAY_LOG=1`). JSONL stream at `~/.doc-index/replay.log` complementary to v1.23 SQLite ranking ledger; grep-friendly. `read_all(limit=N)` for offline analysis.
 
-### v1.29.0+ — Phase-6 infrastructure backlog (remaining)
-**Goal:** Continue tightening as identified in PRD §6.
+### v1.29.0 — Sphinx toctree + VuePress + OpenAPI 3.1 + Swagger 2.0 + autotune — ✅ SHIPPED (2026-04-26)
+**Shipped:**
+- `get_tutorial_path` gains two new strategies: `sphinx_toctree` (parses `.. toctree::` directives, tolerates `:maxdepth:` etc options, handles `Display label <doc>` form) and `vuepress_sidebar` (reads `.vuepress/config.json`; supports the flat-string sidebar form via JSON-or-converted-markdown fallback parser; grouped-dict form documented as known limitation pending source_root persistence).
+- New corpus + locked fixtures `openapi31_realworld` (OpenAPI 3.1 with webhooks + nullable types + `[type, "null"]`) and `swagger20_realworld` (Swagger 2.0 with `definitions:` + `host:`/`basePath:`).
+- `index_local(autotune=True)` opt-in flag runs the v1.23 weight tuner against accumulated ranking events at end of indexing. No-op when telemetry is disabled.
+- CI gate updated to loop all 7 fixtures.
 
+### v1.30.0+ — Phase-6 backlog (remaining)
 - Multi-format regression suite (real-world docs as a `corpus/` git submodule).
 - Stale-index simulation tests.
 - README.md / SPEC.md surfacing of the 1.x compatibility commitment.
-- Sphinx `.. toctree::` and VuePress sidebar JSON detection in `get_tutorial_path`.
-- OpenAPI 3.1 + Swagger 2.0 explicit replay fixtures.
-- Periodic-cron autorun of `tune_weights` inside `index_local`.
+- `index_local` persists `source_root` so VuePress grouped-dict sidebar form becomes resolvable.
 
 ---
 
