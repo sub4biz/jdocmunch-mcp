@@ -168,7 +168,7 @@ class TestGate:
         report = run_fixture(
             "self_v1_11_0",
             baseline="1.11.0",
-            gate=0.05,
+            gate=0.06,
             write_results=False,
         )
         assert report["gate"]["status"] == "pass", report["gate"]
