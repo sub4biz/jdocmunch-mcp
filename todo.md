@@ -404,9 +404,12 @@ Everything from the original "v2.0.0 capstone bundle" that can be re-engineered 
 - `_vuepress_chain` now reads the raw `.vuepress/config.json` from disk via `source_root` first; falls back to the cached/converted form. Grouped-dict sidebar form `[{text, children:[...]}]` resolvable end-to-end.
 - README.md gains a customer-visible "1.x compatibility commitment" block enumerating what jdocmunch-mcp will never break on 1.x: tool removal/rename, Section-field drop, forced-reindex schema bump, wire-format break, default-behavior raise. Test pins the exact phrasing so future README edits don't accidentally weaken it.
 
-### v1.31.0+ — Phase-6 backlog (remaining)
-- Multi-format regression suite (real-world docs as a `corpus/` git submodule).
-- Stale-index simulation tests.
+### v1.31.0 — Stale-index simulation + multi-format regression harness — ✅ SHIPPED (2026-04-26)
+**Shipped:**
+- Stale-index simulation suite — single mutation surfaces in all three observability paths (FreshnessProbe / verify_index / get_section_diff). Append-only mutation correctly classifies as `edited_uncommitted` without flagging unaffected byte ranges. Missing file surfaces both in FreshnessProbe and verify_index. search_sections `_meta.freshness` summary reflects drift.
+- Multi-format regression harness — parametrized test exercises every supported format (md / mdx / rst / adoc / html / txt / json / xml / tscn / yaml-as-OpenAPI) end-to-end through index_local + load + section count. Companion test asserts every parser registration in ALL_EXTENSIONS exists.
+
+**Phase-6 backlog: COMPLETE.** Original PRD §6 enumerated 13 infrastructure items. v1.27 → v1.31 shipped all of them as additive 1.x minors.
 
 ---
 
