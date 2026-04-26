@@ -6,6 +6,7 @@ from .asciidoc_parser import parse_asciidoc
 from .notebook_parser import convert_notebook
 from .html_parser import convert_html
 from .openapi_parser import convert_openapi, sniff_openapi
+from .openapi_structured import parse_openapi_structured
 from .json_parser import convert_json
 from .xml_parser import convert_xml
 from .text_parser import parse_text
@@ -74,7 +75,9 @@ def preprocess_content(content: str, doc_path: str) -> str:
     if ext == ".jsonc":
         return convert_json(content, doc_path)
     if sniff_openapi(content, ext):
-        return convert_openapi(content)
+        # v1.18.0: keep raw spec; parse_file dispatches to the structured
+        # parser. (Pre-v1.18 we converted to markdown here.)
+        return content
     if ext == ".json":
         return convert_json(content, doc_path)
     return content
@@ -107,12 +110,20 @@ def parse_file(content: str, doc_path: str, repo: str) -> list:
         # content already preprocessed to markdown by preprocess_content()
         sections = parse_markdown(content, doc_path, repo)
     elif doc_type == "openapi":
-        # content is preprocessed markdown if OpenAPI; raw YAML/JSON otherwise
-        # Only parse if it looks like converted markdown (starts with a heading)
+        # v1.18.0: structured OpenAPI parser when the content is still raw
+        # YAML/JSON. Plain `.json` files come through here pre-converted to
+        # markdown (preprocess_content's convert_json branch) — detect that
+        # and parse as markdown directly.
         if content.lstrip().startswith("# "):
             sections = parse_markdown(content, doc_path, repo)
         else:
-            sections = []
+            sections = parse_openapi_structured(content, doc_path, repo)
+            if not sections:
+                md = convert_openapi(content)
+                if md and md.lstrip().startswith("# "):
+                    sections = parse_markdown(md, doc_path, repo)
+                else:
+                    sections = []
     elif doc_type in ("json", "xml", "godot"):
         # content already preprocessed to markdown by preprocess_content()
         if content.lstrip().startswith("# "):

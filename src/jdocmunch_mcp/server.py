@@ -32,6 +32,12 @@ from .tools.get_session_stats import get_session_stats
 from .tools.check_embedding_drift import check_embedding_drift
 from .tools.find_code_examples import find_code_examples
 from .tools.link_code_to_symbols import link_code_to_symbols
+from .tools.openapi_tools import (
+    find_endpoint,
+    list_endpoints_by_tag,
+    find_operations_using_schema,
+    get_schema_graph,
+)
 
 
 server = Server("jdocmunch-mcp")
@@ -481,6 +487,73 @@ async def list_tools() -> list[Tool]:
             }
         ),
         Tool(
+            name="find_endpoint",
+            description=(
+                "Find OpenAPI operations by path glob, method, and/or tag. All filters AND'd. "
+                "Returns one row per match with {section_id, doc_path, method, path, "
+                "operationId, summary, tags, deprecated}. Requires the spec to have been "
+                "indexed under v1.18+ so structured metadata is present."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string"},
+                    "path": {"type": "string", "description": "fnmatch glob (e.g. '/pets/*'); case-sensitive"},
+                    "method": {"type": "string", "description": "HTTP method; case-insensitive"},
+                    "tag": {"type": "string", "description": "Exact tag match"}
+                },
+                "required": ["repo"]
+            }
+        ),
+        Tool(
+            name="list_endpoints_by_tag",
+            description=(
+                "Return every operation whose tags list contains the given tag (exact). "
+                "Convenience wrapper around find_endpoint with only a tag filter."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string"},
+                    "tag": {"type": "string"}
+                },
+                "required": ["repo", "tag"]
+            }
+        ),
+        Tool(
+            name="find_operations_using_schema",
+            description=(
+                "Return every operation whose request body or any response references the "
+                "given schema. Each row gets a referenced_in list of all schema names that "
+                "operation pulls in (so you can see the broader dependency cluster)."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string"},
+                    "schema_name": {"type": "string"}
+                },
+                "required": ["repo", "schema_name"]
+            }
+        ),
+        Tool(
+            name="get_schema_graph",
+            description=(
+                "BFS walk of the schema reference graph from a root schema name. Returns "
+                "{root, nodes:{name:{type, properties, required, refs}}, edges:[[from, to]], "
+                "unresolved}. max_depth bounds the walk (default 5)."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string"},
+                    "schema_name": {"type": "string"},
+                    "max_depth": {"type": "integer", "default": 5}
+                },
+                "required": ["repo", "schema_name"]
+            }
+        ),
+        Tool(
             name="check_embedding_drift",
             description=(
                 "Embedding-drift canary. Without args, re-embeds the saved CANARY_STRINGS "
@@ -674,6 +747,33 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 code_repo=arguments["code_repo"],
                 max_examples=arguments.get("max_examples", 200),
                 max_symbols_per_block=arguments.get("max_symbols_per_block", 5),
+                storage_path=storage_path,
+            )
+        elif name == "find_endpoint":
+            result = find_endpoint(
+                repo=arguments["repo"],
+                path=arguments.get("path"),
+                method=arguments.get("method"),
+                tag=arguments.get("tag"),
+                storage_path=storage_path,
+            )
+        elif name == "list_endpoints_by_tag":
+            result = list_endpoints_by_tag(
+                repo=arguments["repo"],
+                tag=arguments["tag"],
+                storage_path=storage_path,
+            )
+        elif name == "find_operations_using_schema":
+            result = find_operations_using_schema(
+                repo=arguments["repo"],
+                schema_name=arguments["schema_name"],
+                storage_path=storage_path,
+            )
+        elif name == "get_schema_graph":
+            result = get_schema_graph(
+                repo=arguments["repo"],
+                schema_name=arguments["schema_name"],
+                max_depth=arguments.get("max_depth", 5),
                 storage_path=storage_path,
             )
         else:

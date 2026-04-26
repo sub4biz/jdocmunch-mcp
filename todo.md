@@ -241,7 +241,7 @@ Each release: version bump → tests pass (`PYTHONPATH=src python -m pytest test
 
 ---
 
-### v1.18.0 — Structured OpenAPI retrieval
+### v1.18.0 — Structured OpenAPI retrieval — ✅ SHIPPED (2026-04-26)
 **Goal:** Promote OpenAPI to a first-class doc type. No more flattening to prose.
 
 **Parser rewrite (`parser/openapi_parser.py`):**

@@ -29,6 +29,11 @@ class Section:
     #    "byte_start": int, "byte_end": int}
     # block_id format: "{section_id}::code#{n}" (n is 0-based per section).
     code_blocks: list = field(default_factory=list)
+    # v1.18.0: format-specific structured metadata. Examples:
+    #   metadata.openapi_op    = {method, path, operationId, summary, ...}
+    #   metadata.openapi_schema = {name, type, properties, required, ...}
+    # Persisted only when non-empty.
+    metadata: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         """Serialize to a JSON-safe dict."""
@@ -51,6 +56,13 @@ class Section:
             d["embedding"] = self.embedding
         if self.code_blocks:
             d["code_blocks"] = self.code_blocks
+        if self.metadata:
+            d["metadata"] = self.metadata
+        # Preserve inline content for sections that cannot be recovered via
+        # byte-range reads (e.g. v1.18 structured-OpenAPI sections that
+        # don't map to the raw spec's byte offsets).
+        if self.byte_end == 0 and self.content:
+            d["content"] = self.content
         return d
 
     @classmethod
@@ -73,6 +85,7 @@ class Section:
             content_hash=data.get("content_hash", ""),
             embedding=data.get("embedding", []),
             code_blocks=data.get("code_blocks", []),
+            metadata=data.get("metadata", {}),
         )
 
 
