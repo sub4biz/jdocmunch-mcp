@@ -153,6 +153,10 @@ async def list_tools() -> list[Tool]:
                     "repo": {
                         "type": "string",
                         "description": "Repository identifier (owner/repo or just repo name)"
+                    },
+                    "path_glob": {
+                        "type": "string",
+                        "description": "v1.36+ — fnmatch glob restricting results to matching doc_paths (e.g. 'api/**/*.md', 'reference/*'). Default: no filter."
                     }
                 },
                 "required": ["repo"]
@@ -167,6 +171,10 @@ async def list_tools() -> list[Tool]:
                     "repo": {
                         "type": "string",
                         "description": "Repository identifier (owner/repo or just repo name)"
+                    },
+                    "path_glob": {
+                        "type": "string",
+                        "description": "v1.36+ — fnmatch glob restricting results to matching doc_paths. Default: no filter."
                     }
                 },
                 "required": ["repo"]
@@ -207,6 +215,10 @@ async def list_tools() -> list[Tool]:
                     "doc_path": {
                         "type": "string",
                         "description": "Optional: limit search to a specific document"
+                    },
+                    "path_glob": {
+                        "type": "string",
+                        "description": "v1.36+ — fnmatch glob restricting results to matching doc_paths (e.g. 'api/**/*.md'). Stacks with doc_path."
                     },
                     "max_results": {
                         "type": "integer",
@@ -882,11 +894,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         elif name == "get_toc":
             result = get_toc(
                 repo=arguments["repo"],
+                path_glob=arguments.get("path_glob"),
                 storage_path=storage_path,
             )
         elif name == "get_toc_tree":
             result = get_toc_tree(
                 repo=arguments["repo"],
+                path_glob=arguments.get("path_glob"),
                 storage_path=storage_path,
             )
         elif name == "get_document_outline":
@@ -900,6 +914,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 repo=arguments.get("repo"),
                 query=arguments["query"],
                 doc_path=arguments.get("doc_path"),
+                path_glob=arguments.get("path_glob"),
                 max_results=arguments.get("max_results", 10),
                 semantic=arguments.get("semantic"),
                 semantic_only=arguments.get("semantic_only", False),

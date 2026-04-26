@@ -11,6 +11,7 @@ def search_sections(
     repo: Optional[str] = None,
     query: str = "",
     doc_path: Optional[str] = None,
+    path_glob: Optional[str] = None,
     max_results: int = 10,
     semantic: Optional[bool] = None,
     semantic_only: bool = False,
@@ -81,6 +82,7 @@ def search_sections(
             sub = search_sections(
                 repo=member, query=query,
                 doc_path=doc_path,
+                path_glob=path_glob,
                 max_results=max(max_results, 10),
                 semantic=semantic, semantic_only=semantic_only,
                 semantic_weight=semantic_weight,
@@ -170,6 +172,14 @@ def search_sections(
     except ValueError as exc:
         return {"error": str(exc), "_meta": {"lexical_engine": lexical_engine}}
 
+    # v1.36.0: optional path_glob filter — restrict results to sections
+    # whose doc_path matches the fnmatch pattern. Runs before dedup +
+    # role/profile filtering so the limit math stays right.
+    if path_glob:
+        import fnmatch
+        results = [r for r in results
+                   if fnmatch.fnmatch(r.get("doc_path", ""), path_glob)]
+
     # v1.34.0: optional dedup pass — collapse cluster members to their
     # representative; record suppressed members for transparency. Runs
     # BEFORE role/profile filtering so the limit math stays right.
@@ -251,6 +261,8 @@ def search_sections(
         meta["dedupe"] = True
         if deduped_map:
             meta["deduped"] = deduped_map
+    if path_glob:
+        meta["path_glob"] = path_glob
     attach_confidence(query, results, meta)
 
     # v1.33.0: per-result answerability + quotability scores. Read content

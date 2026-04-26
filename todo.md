@@ -2,8 +2,21 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.35.0)
-**Status:** v1.10.0–v1.35.0 shipped. 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.36.0)
+**Status:** v1.10.0–v1.36.0 shipped. 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.36.0 — path_glob filter on retrieval — ✅ SHIPPED (2026-04-26)
+**Goal:** Monorepo scoping. New `path_glob` arg on `search_sections`, `get_toc`, and `get_toc_tree` restricts results to sections whose `doc_path` matches an fnmatch pattern (e.g. `"api/**/*.md"`, `"reference/*"`). Stacks with the existing exact-match `doc_path` arg. Defaults to None (no filter).
+
+**Deliverables:**
+- `path_glob: Optional[str] = None` added to all three tools' Python signatures, schemas, and dispatch.
+- Filter runs in-place via `fnmatch.fnmatch` against `doc_path`. In `search_sections`, runs before dedup/role/profile filtering so `max_results` math stays right. In `get_toc_tree`, filters the doc-grouping pass.
+- `_meta.path_glob` echoed back when set.
+- Threaded through repo-group fan-out so cross-repo glob filtering works.
+- 13 tests in `tests/test_v1_36_0.py` covering default-None pass-through, glob match, no-match, schema parity for all 3 tools.
+
+**Replay gate:** all 7 fixtures pass vs v1.35.0 baseline at 1.0 nDCG/MRR/Recall.
+**Tests:** 912 → 925 (+13).
 
 ### v1.35.0 — CHANGELOG generator + code-block compression — ✅ SHIPPED (2026-04-26)
 **Goal:** Two small wins. (a) Make CHANGELOG.md mechanically reproducible from git — a release-time utility that reads `release: vN.N.N — title` commits and re-renders Keep-a-Changelog markdown. (b) Add an opt-in `compress_code` kwarg on `get_section`/`get_sections` that strips blank lines and full-line comments inside fenced code blocks before returning. Disk content untouched; `_meta.code_compressed_bytes` reports savings.
