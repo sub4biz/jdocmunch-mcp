@@ -1,6 +1,6 @@
 # jdocmunch-mcp
 
-**Version:** 1.16.0 | **Tests:** `pytest tests/ -q` (571 total)
+**Version:** 1.17.0 | **Tests:** `pytest tests/ -q` (593 total)
 
 ## Purpose
 Documentation section indexing for the jMunch suite. Companion to jcodemunch-mcp (which owns code symbols). Do NOT add code/docstring parsing here.
@@ -29,7 +29,7 @@ Documentation section indexing for the jMunch suite. Companion to jcodemunch-mcp
 | `hook-precompact` | PreCompact hook: session snapshot before context compaction (reads stdin) |
 
 ## Architecture
-- INDEX_VERSION=2; version mismatch triggers full re-index
+- INDEX_VERSION=3; version mismatch triggers full re-index
 - O(1) section lookup via `DocIndex.__post_init__` id dict
 - `pyyaml>=6.0` required (hard dep)
 - Hybrid search (v1.9.0): `search_sections` fuses BM25 + semantic cosine when embeddings exist. `use_embeddings` defaults to `"auto"` (embed when provider configured). `search_sections` params: `semantic` (None/auto, True, False), `semantic_only`, `semantic_weight` (0.0–1.0, default 0.5). `_meta.search_mode` reports `hybrid`/`semantic_only`/`lexical`.

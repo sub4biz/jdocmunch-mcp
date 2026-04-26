@@ -30,6 +30,8 @@ from .tools.get_wiki_stats import get_wiki_stats
 from .tools.analyze_perf import analyze_perf
 from .tools.get_session_stats import get_session_stats
 from .tools.check_embedding_drift import check_embedding_drift
+from .tools.find_code_examples import find_code_examples
+from .tools.link_code_to_symbols import link_code_to_symbols
 
 
 server = Server("jdocmunch-mcp")
@@ -441,6 +443,44 @@ async def list_tools() -> list[Tool]:
             }
         ),
         Tool(
+            name="find_code_examples",
+            description=(
+                "Search fenced code blocks across the indexed docs by BM25 over the block "
+                "content. Returns one row per block with {block_id, section_id, doc_path, "
+                "title, lang, byte_start, byte_end, snippet, _score}. Optional lang filter "
+                "(e.g. 'python', 'bash'). Use after index_local; requires INDEX_VERSION>=3."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string", "description": "jdocmunch repo identifier"},
+                    "query": {"type": "string", "description": "Free-form code-content query"},
+                    "lang": {"type": "string", "description": "Optional case-insensitive language filter"},
+                    "max_results": {"type": "integer", "default": 10}
+                },
+                "required": ["repo", "query"]
+            }
+        ),
+        Tool(
+            name="link_code_to_symbols",
+            description=(
+                "Best-effort bridge from doc code blocks to jcodemunch code symbols. "
+                "For each block, tokenizes identifiers and looks them up via "
+                "jcodemunch's search_symbols. Returns {by_block, by_symbol, _meta} where "
+                "_meta.bridge_available reports whether jcodemunch-mcp is importable."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string", "description": "jdocmunch repo identifier"},
+                    "code_repo": {"type": "string", "description": "jcodemunch repo identifier"},
+                    "max_examples": {"type": "integer", "default": 200},
+                    "max_symbols_per_block": {"type": "integer", "default": 5}
+                },
+                "required": ["repo", "code_repo"]
+            }
+        ),
+        Tool(
             name="check_embedding_drift",
             description=(
                 "Embedding-drift canary. Without args, re-embeds the saved CANARY_STRINGS "
@@ -618,6 +658,22 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 capture=arguments.get("capture", False),
                 force=arguments.get("force", False),
                 threshold=arguments.get("threshold", 0.05),
+                storage_path=storage_path,
+            )
+        elif name == "find_code_examples":
+            result = find_code_examples(
+                repo=arguments["repo"],
+                query=arguments["query"],
+                lang=arguments.get("lang"),
+                max_results=arguments.get("max_results", 10),
+                storage_path=storage_path,
+            )
+        elif name == "link_code_to_symbols":
+            result = link_code_to_symbols(
+                repo=arguments["repo"],
+                code_repo=arguments["code_repo"],
+                max_examples=arguments.get("max_examples", 200),
+                max_symbols_per_block=arguments.get("max_symbols_per_block", 5),
                 storage_path=storage_path,
             )
         else:

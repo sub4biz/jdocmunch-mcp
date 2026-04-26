@@ -211,7 +211,7 @@ Each release: version bump → tests pass (`PYTHONPATH=src python -m pytest test
 
 ---
 
-### v1.17.0 — Code-block-aware indexing + jcodemunch bridge
+### v1.17.0 — Code-block-aware indexing + jcodemunch bridge — ✅ SHIPPED (2026-04-26)
 **Goal:** The differentiator. Make doc code samples first-class, queryable, and linkable to jcodemunch symbols.
 
 **Parser:**

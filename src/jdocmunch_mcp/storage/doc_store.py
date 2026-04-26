@@ -13,7 +13,7 @@ from typing import Optional
 from ..parser.sections import Section
 from ..embeddings import embed_query, cosine_similarity
 
-INDEX_VERSION = 2
+INDEX_VERSION = 3
 
 # Module-level LRU cache: {(str(index_path), mtime_ns): DocIndex}
 # Keyed by path + mtime so the entry auto-invalidates whenever the file changes.

@@ -99,12 +99,29 @@ def parse_markdown(content: str, doc_path: str, repo: str) -> list:
 
     byte_cursor = 0
 
+    # Per-section buffer of code blocks parsed inside the current section
+    # (v1.17.0). Each entry is a dict {lang, content, byte_start, byte_end};
+    # block_id is stamped at _finalize_section once the section_id is known.
+    current_code_blocks: list = []
+
     def _finalize_section(byte_end: int) -> None:
         """Close the current open section and append it to sections."""
-        nonlocal current_slug
+        nonlocal current_slug, current_code_blocks
         body = "".join(current_lines)
         slug = current_slug or slugify(current_title)
         section_id = make_section_id(repo, doc_path, slug, current_level)
+        # Stamp block_ids ("section_id::code#0", "::code#1", …).
+        finalized_blocks = []
+        for n, blk in enumerate(current_code_blocks):
+            finalized_blocks.append(
+                {
+                    "block_id": f"{section_id}::code#{n}",
+                    "lang": blk.get("lang", ""),
+                    "content": blk.get("content", ""),
+                    "byte_start": blk.get("byte_start", 0),
+                    "byte_end": blk.get("byte_end", 0),
+                }
+            )
         sec = Section(
             id=section_id,
             repo=repo,
@@ -117,36 +134,60 @@ def parse_markdown(content: str, doc_path: str, repo: str) -> list:
             byte_start=current_byte_start,
             byte_end=byte_end,
             summary="",
+            code_blocks=finalized_blocks,
         )
         sec.content_hash = compute_content_hash(body)
         sec.references = extract_references(body)
         sec.tags = extract_tags(body)
         sections.append(sec)
+        current_code_blocks = []
 
     prev_line: str = ""
     prev_byte_start: int = 0
 
-    # Fenced-code-block state (B2). When inside a fence, ATX and setext
-    # detection are suppressed so '# comment' inside code does not become
-    # a phantom section.
+    # Fenced-code-block state (B2 + v1.17.0). When inside a fence, ATX and
+    # setext detection are suppressed so '# comment' inside code does not
+    # become a phantom section. v1.17.0 also captures the body bytes + lang
+    # of every fenced block for the find_code_examples tool.
     in_fence: bool = False
     fence_char: str = ""
     fence_len: int = 0
+    fence_lang: str = ""
+    fence_body_byte_start: int = 0
+    fence_body_lines: list = []
 
     for i, line in enumerate(lines):
         line_bytes = len(line.encode("utf-8"))
         line_stripped = line.rstrip("\n").rstrip("\r")
 
-        # --- Fence state machine (B2) ---
+        # --- Fence state machine (B2 + v1.17.0 capture) ---
         if in_fence:
             # Match a closing fence: same char, length >= opening length.
             stripped_left = line_stripped.lstrip()
+            is_close = False
             if stripped_left and stripped_left[0] == fence_char:
                 run = len(stripped_left) - len(stripped_left.lstrip(fence_char))
                 if run >= fence_len and stripped_left[run:].strip() == "":
-                    in_fence = False
-                    fence_char = ""
-                    fence_len = 0
+                    is_close = True
+            if is_close:
+                # Emit the captured code block: body byte range excludes the
+                # fence delimiters themselves.
+                body_text = "".join(fence_body_lines)
+                current_code_blocks.append(
+                    {
+                        "lang": fence_lang,
+                        "content": body_text,
+                        "byte_start": fence_body_byte_start,
+                        "byte_end": byte_cursor,
+                    }
+                )
+                in_fence = False
+                fence_char = ""
+                fence_len = 0
+                fence_lang = ""
+                fence_body_lines = []
+            else:
+                fence_body_lines.append(line)
             # Whether opening or closing, lines inside a fence are body content,
             # not headings. Append and advance.
             current_lines.append(line)
@@ -161,6 +202,11 @@ def parse_markdown(content: str, doc_path: str, repo: str) -> list:
             in_fence = True
             fence_char = marker[0]
             fence_len = len(marker)
+            # Info string after the fence run = language tag (e.g. ```python).
+            fence_lang = line_stripped[len(marker):].strip().split()[0] if line_stripped[len(marker):].strip() else ""
+            fence_body_lines = []
+            # Body starts at the byte cursor for the NEXT line after this fence opener.
+            fence_body_byte_start = byte_cursor + line_bytes
             current_lines.append(line)
             prev_line = line_stripped
             prev_byte_start = byte_cursor

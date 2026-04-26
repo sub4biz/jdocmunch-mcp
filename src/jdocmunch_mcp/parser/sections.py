@@ -24,6 +24,11 @@ class Section:
     references: list = field(default_factory=list)
     content_hash: str = ""
     embedding: list = field(default_factory=list)  # semantic embedding vector (empty = not embedded)
+    # v1.17.0: extracted fenced code blocks. Each entry:
+    #   {"block_id": str, "lang": str, "content": str,
+    #    "byte_start": int, "byte_end": int}
+    # block_id format: "{section_id}::code#{n}" (n is 0-based per section).
+    code_blocks: list = field(default_factory=list)
 
     def to_dict(self) -> dict:
         """Serialize to a JSON-safe dict."""
@@ -44,6 +49,8 @@ class Section:
         }
         if self.embedding:
             d["embedding"] = self.embedding
+        if self.code_blocks:
+            d["code_blocks"] = self.code_blocks
         return d
 
     @classmethod
@@ -65,6 +72,7 @@ class Section:
             references=data.get("references", []),
             content_hash=data.get("content_hash", ""),
             embedding=data.get("embedding", []),
+            code_blocks=data.get("code_blocks", []),
         )
 
 
