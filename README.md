@@ -48,6 +48,16 @@ Index once. Query cheaply forever.
 > - [Munch Duo Studio Bundle — $399](https://j.gravelle.us/jCodeMunch/descriptions.php#studio)
 > - [Munch Duo Platform Bundle — $2,249](https://j.gravelle.us/jCodeMunch/descriptions.php#platform)
 
+> ### 1.x compatibility commitment
+> Every 1.x license entitles you to every future 1.x release. We will never ship a 1.x version that:
+> - removes or renames an MCP tool (deprecated tool names keep their aliases),
+> - drops a `Section` field from the response shape,
+> - forces a reindex without auto-migrating your existing index on first load,
+> - changes the JSON wire format of any tool response in a way that breaks an existing consumer,
+> - or makes a previously-default behavior raise.
+>
+> Anything that would require breaking these promises is reserved for a future major version (2.x). The full machine-checked contract is enforced via `tests/test_server.py` (tool-name and required-field invariants) and the replay-fixture gate that runs on every release.
+
 **Stop dumping documentation files into context windows. Start navigating docs structurally.**
 
 jDocMunch indexes documentation once by heading hierarchy and section structure, then gives MCP-compatible agents precise access to the explanations they actually need instead of forcing them to brute-read files.

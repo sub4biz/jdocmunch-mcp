@@ -66,6 +66,11 @@ class DocIndex:
     # v1.12.0: BM25 corpus stats. Empty dict for legacy indices — score_section
     # gracefully degrades when stats are missing.
     bm25_stats: dict = field(default_factory=dict)
+    # v1.30.0: absolute path to the original source folder so tools can re-read
+    # raw files when the cached/converted form has lost information (notably the
+    # VuePress grouped-dict sidebar). Empty string when unknown — tools must
+    # tolerate the missing case.
+    source_root: str = ""
 
     def __post_init__(self) -> None:
         # Build O(1) lookup dict once at load time
@@ -387,6 +392,7 @@ class DocStore:
         doc_types: dict,        # {".md": N}
         file_hashes: Optional[dict] = None,
         head_sha: Optional[str] = None,
+        source_root: str = "",
     ) -> "DocIndex":
         """Save index and raw files to storage atomically."""
         if file_hashes is None:
@@ -411,6 +417,7 @@ class DocStore:
             file_hashes=file_hashes,
             head_sha=head_sha,
             bm25_stats=bm25_stats,
+            source_root=source_root or "",
         )
 
         index_path = self._index_path(owner, name)
@@ -467,6 +474,7 @@ class DocStore:
             file_hashes=data.get("file_hashes", {}),
             head_sha=data.get("head_sha"),
             bm25_stats=data.get("bm25_stats", {}),
+            source_root=data.get("source_root", ""),
         )
 
         # Inject lazy content loader so search can score on body text (B1).
@@ -725,6 +733,8 @@ class DocStore:
             d["head_sha"] = index.head_sha
         if index.bm25_stats:
             d["bm25_stats"] = index.bm25_stats
+        if getattr(index, "source_root", ""):
+            d["source_root"] = index.source_root
         return d
 
     def _resolve_repo(self, repo: str) -> tuple:

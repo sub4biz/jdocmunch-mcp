@@ -333,6 +333,7 @@ def index_local(
             sections=all_sections,
             raw_files=raw_files,
             doc_types=doc_types,
+            source_root=str(folder_path),
         )
 
         latency_ms = int((time.perf_counter() - t0) * 1000)

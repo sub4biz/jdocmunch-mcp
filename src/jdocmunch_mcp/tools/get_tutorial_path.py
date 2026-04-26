@@ -210,14 +210,15 @@ def _toctree_chain(store, owner: str, name: str, start_doc: str, doc_paths: set)
     return chain if len(chain) > 1 else []
 
 
-def _vuepress_chain(store, owner: str, name: str, start_doc: str, doc_paths: set) -> list[str]:
+def _vuepress_chain(store, owner: str, name: str, start_doc: str, doc_paths: set, *, index=None) -> list[str]:
     """VuePress-style sidebar config chain.
 
-    Looks for a sibling ``.vuepress/config.json`` (or ``config.js`` we'll
-    parse heuristically) listing sidebar entries. Modern VuePress uses
-    ``themeConfig.sidebar`` with arrays of paths or {text, link} objects.
-    We support the JSON form only — the JS form requires a parser we
-    don't ship.
+    Resolution order for the config payload:
+      1. v1.30+: when ``index.source_root`` is populated, re-read the
+         original ``.vuepress/config.json`` directly from disk so nested
+         dict structures (grouped-dict sidebar form) survive.
+      2. The cached file (which ``convert_json`` may have flattened to
+         markdown — only the flat-string sidebar form survives that).
     """
     import json
 
@@ -232,11 +233,26 @@ def _vuepress_chain(store, owner: str, name: str, start_doc: str, doc_paths: set
     cfg_paths_to_try.append(".vuepress/config.json")
 
     cfg_text = None
-    for cand in cfg_paths_to_try:
-        if cand in doc_paths:
-            cfg_text = _content_of(store, owner, name, cand)
-            if cfg_text:
-                break
+    # v1.30: try the raw on-disk file first via source_root.
+    source_root = getattr(index, "source_root", "") if index is not None else ""
+    if source_root:
+        from pathlib import Path as _P
+        for cand in cfg_paths_to_try:
+            raw_path = _P(source_root) / cand
+            if raw_path.exists():
+                try:
+                    cfg_text = raw_path.read_text(encoding="utf-8")
+                    break
+                except OSError:
+                    continue
+
+    # Fallback: cached/converted form.
+    if not cfg_text:
+        for cand in cfg_paths_to_try:
+            if cand in doc_paths:
+                cfg_text = _content_of(store, owner, name, cand)
+                if cfg_text:
+                    break
     if not cfg_text:
         return []
 
@@ -382,7 +398,10 @@ def get_tutorial_path(
         (_toctree_chain, "sphinx_toctree"),
         (_vuepress_chain, "vuepress_sidebar"),
     ):
-        result = fn(store, owner, name, start_doc, doc_paths_set)
+        if label == "vuepress_sidebar":
+            result = fn(store, owner, name, start_doc, doc_paths_set, index=index)
+        else:
+            result = fn(store, owner, name, start_doc, doc_paths_set)
         if result:
             chain_paths = result
             strategy = label

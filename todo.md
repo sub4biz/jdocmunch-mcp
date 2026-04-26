@@ -398,11 +398,15 @@ Everything from the original "v2.0.0 capstone bundle" that can be re-engineered 
 - `index_local(autotune=True)` opt-in flag runs the v1.23 weight tuner against accumulated ranking events at end of indexing. No-op when telemetry is disabled.
 - CI gate updated to loop all 7 fixtures.
 
-### v1.30.0+ — Phase-6 backlog (remaining)
+### v1.30.0 — source_root persistence + README contract + grouped VuePress — ✅ SHIPPED (2026-04-26)
+**Shipped:**
+- `DocIndex.source_root` field; populated by `index_local` with `str(folder_path)`. Persisted only when non-empty (omit-when-empty pattern).
+- `_vuepress_chain` now reads the raw `.vuepress/config.json` from disk via `source_root` first; falls back to the cached/converted form. Grouped-dict sidebar form `[{text, children:[...]}]` resolvable end-to-end.
+- README.md gains a customer-visible "1.x compatibility commitment" block enumerating what jdocmunch-mcp will never break on 1.x: tool removal/rename, Section-field drop, forced-reindex schema bump, wire-format break, default-behavior raise. Test pins the exact phrasing so future README edits don't accidentally weaken it.
+
+### v1.31.0+ — Phase-6 backlog (remaining)
 - Multi-format regression suite (real-world docs as a `corpus/` git submodule).
 - Stale-index simulation tests.
-- README.md / SPEC.md surfacing of the 1.x compatibility commitment.
-- `index_local` persists `source_root` so VuePress grouped-dict sidebar form becomes resolvable.
 
 ---
 
