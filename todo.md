@@ -187,7 +187,7 @@ Each release: version bump → tests pass (`PYTHONPATH=src python -m pytest test
 
 ---
 
-### v1.16.0 — Section freshness probe + retrieval confidence
+### v1.16.0 — Section freshness probe + retrieval confidence — ✅ SHIPPED (2026-04-26)
 **Goal:** Agents stop confidently quoting stale sections; LLMs get a "should I expand?" signal.
 
 **Freshness (`retrieval/freshness.py`):**

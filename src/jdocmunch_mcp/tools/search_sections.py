@@ -62,6 +62,15 @@ def search_sections(
         lexical_engine=lexical_engine,
     )
 
+    # v1.16.0: per-section freshness + retrieval confidence.
+    from ..retrieval.freshness import FreshnessProbe
+    from ..retrieval.confidence import attach_confidence
+
+    probe = FreshnessProbe(store, owner, name, index)
+    for sec in results:
+        probe.annotate(sec)
+    freshness_summary = probe.summary(results)
+
     # Calculate token savings: matched docs full bytes vs summary-only response
     matched_doc_paths = {r.get("doc_path") for r in results}
     raw_bytes = sum(
@@ -85,6 +94,8 @@ def search_sections(
     if mode == "hybrid":
         meta["semantic_weight"] = semantic_weight
     meta["lexical_engine"] = lexical_engine
+    meta["freshness"] = freshness_summary
+    attach_confidence(query, results, meta)
     if not has_emb and mode == "lexical":
         meta["tip"] = "Re-index with use_embeddings=True for semantic search (better recall on paraphrased queries)"
 

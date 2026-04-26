@@ -169,7 +169,12 @@ class DocIndex:
             scored.append((score, sec))
 
         scored.sort(key=lambda x: x[0], reverse=True)
-        return [self._strip(sec) for _, sec in scored[:max_results]]
+        out: list[dict] = []
+        for score, sec in scored[:max_results]:
+            stripped = self._strip(sec)
+            stripped["_score"] = float(score)
+            out.append(stripped)
+        return out
 
     def _hybrid_search(
         self,
@@ -243,10 +248,12 @@ class DocIndex:
         # Materialize top max_results sections.
         by_id = {s.get("id"): s for s in self.sections}
         out: list[dict] = []
-        for sid, _score in fused[:max_results]:
+        for sid, score in fused[:max_results]:
             sec = by_id.get(sid)
             if sec is not None:
-                out.append(self._strip(sec))
+                stripped = self._strip(sec)
+                stripped["_score"] = float(score)
+                out.append(stripped)
         return out
 
     def _lexical_search(self, query: str, doc_path: Optional[str], max_results: int) -> list:
@@ -283,7 +290,12 @@ class DocIndex:
                 scored.append((score, sec))
 
         scored.sort(key=lambda x: x[0], reverse=True)
-        return [self._strip(sec) for _, sec in scored[:max_results]]
+        out: list[dict] = []
+        for score, sec in scored[:max_results]:
+            stripped = self._strip(sec)
+            stripped["_score"] = float(score)
+            out.append(stripped)
+        return out
 
     @staticmethod
     def _word_matches(word: str, text: str) -> bool:
