@@ -1,9 +1,10 @@
-# jDocMunch PRD — v1.10.0 → v2.0.0 Roadmap
+# jDocMunch PRD — v1.10.0 → v1.x Roadmap
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Status:** Draft — pending sequencing review
-**Scope:** 10 sequential releases (v1.10.0 → v1.18.0 → v2.0.0). Each release is independently shippable, gated by replay benchmark from v1.11.0 onward.
+**Last updated:** 2026-04-26 (post-v1.20.0 retitling)
+**Status:** v1.10.0–v1.20.0 shipped. 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Scope:** All planned features re-engineered to ship within the 1.x line. Each release is independently shippable, gated by replay benchmark from v1.11.0 onward.
 
 ---
 
@@ -318,7 +319,77 @@ Each release: version bump → tests pass (`PYTHONPATH=src python -m pytest test
 - Section schema bump to `INDEX_VERSION=4` with auto-migration on first load.
 - Real tiktoken-or-error replacement of the bytes/4 estimator (current additive helper preserves the heuristic).
 
-### v2.0.0 — Major bet bundle (planned, not yet scoped)
+## Reserved for 2.x (license-blocked — won't ship until a major-version license revision is planned)
+
+Each item below would unavoidably break a 1.x licensee. Deferred indefinitely. Re-evaluate only when sales explicitly approves a 2.x cut.
+
+| Item | Why it's 2.x-only |
+|---|---|
+| Drop bytes/4 token estimate (require tiktoken) | Removes a fallback an existing user might rely on |
+| Rename `list_repos` MCP name (drop `index_repo` / `list_repos` aliases) | Tool removal breaks agents pinned to the name |
+| Forced reindex on schema bump | We auto-migrate on 1.x; "force" would break offline upgrades |
+| MCP wire-format change (e.g. envelope rename) | Breaks every existing consumer at once |
+
+## Ships on 1.x (additive — coming in 1.21+)
+
+Everything from the original "v2.0.0 capstone bundle" that can be re-engineered as additive lands here:
+
+### v1.21.0 — Real-world replay corpora — ✅ SHIPPED (2026-04-26)
+**Goal:** Lock retrieval quality against real docs, not just self-fixture. Pure infrastructure; zero API change.
+
+- `benchmarks/replay/fixtures/markdown_realworld.json` — checked-in slice of FastAPI docs.
+- `benchmarks/replay/fixtures/rst_realworld.json` — checked-in slice of a Sphinx project (e.g. requests).
+- `benchmarks/replay/fixtures/openapi_realworld.json` — Petstore + a non-trivial spec.
+- `benchmarks/replay/fixtures/notebook_realworld.json` — small Jupyter book slice.
+- All locked at v1.21.0 baselines. CI gate extended to fail on any of them.
+
+### v1.22.0 — Tutorial path + inverse coverage tools
+**Goal:** Two pure-additive MCP tools that complete the navigation surface.
+
+- `get_tutorial_path(repo, start_section_id)` — detects `Next:` / `Previous:` links, frontmatter `next:` / `prev:`, ordered file naming (`01-intro.md`); returns ordered section IDs.
+- `get_undocumented_symbols(doc_repo, code_repo)` — companion to jcodemunch's `get_untested_symbols`; walks code_repo's symbols and returns those whose name/qualified-name appears in zero section title/summary/content. Best-effort jcodemunch bridge (mirrors v1.17 `link_code_to_symbols` import-fallback pattern).
+
+### v1.23.0 — Ranking-event ledger + online weight tuning
+**Goal:** Port jcodemunch v1.79.0 in a 1.x-safe way. New SQLite table; new MCP tool; existing tools untouched.
+
+- New `ranking_events` table in `~/.doc-index/telemetry.db` (additive — opt-in via `JDOCMUNCH_PERF_TELEMETRY=1`, same flag as analyze_perf's persistent sink).
+- `record_ranking_event` called from `search_sections` post-attach (no-op when telemetry disabled).
+- New `tools/tune_weights.py` and `tune_weights` MCP tool: reads `ranking_events`, proposes ±0.05 step on `semantic_weight` per repo when correlation crosses threshold (min 50 events). Persists to `~/.doc-index/tuning.jsonc`.
+- `search_sections` reads the tuned weight when `semantic_weight` is at its default 0.5; explicit non-default values always win.
+
+### v1.24.0 — Related-graph persistence + boilerplate detector
+**Goal:** Speed up `get_related_sections` on big indexes; remove repeated headers/footers from token budgets.
+
+- Sidecar adjacency list at `~/.doc-index/<owner>/<name>.related.json` written at index time. `get_related_sections` consumes it when present; falls back to on-demand build (current behavior).
+- New `retrieval/boilerplate.py`: shingled cross-section matching detects repeated content (license headers, "Edit this page on GitHub" footers, nav menus). Persisted as `~/.doc-index/<owner>/<name>.boilerplate.json`.
+- `get_section`, `get_sections`, `get_section_context` gain `strip_boilerplate: bool = False` kwarg. When True, suppress matched fragments before returning content; `_meta.boilerplate_stripped_bytes` reports the reduction.
+
+### v1.25.0 — Notebook output preservation
+**Goal:** Preserve the teaching value of notebooks (currently `convert_notebook` strips outputs).
+
+- `parser/notebook_parser.py` rewrite: each cell becomes a `Section` with `metadata.cell_type` ∈ `{markdown, code}` and `metadata.outputs: [{type, text|html|image_b64_truncated}]`. Code cells + immediate output share `metadata.cell_pair_id` for "show me example with output" retrieval.
+- `INDEX_VERSION` 3 → 4 with auto-migration on first load (silent upgrade — old indexes still readable, new fields populated on next reindex). Per the 1.x compatibility contract, no forced reindex.
+
+### v1.26.0 — Cross-repo concept graph
+**Goal:** Monorepo-friendly fan-out search.
+
+- `~/.doc-index/_groups.jsonc` config: `{"docs-everywhere": ["python-docs", "internal-runbook", "openapi-spec"]}`.
+- `search_sections(repo_group="docs-everywhere", ...)` fans out across constituent indices, fuses via Reciprocal Rank Fusion (`k=60`, reuses v1.13 RRF). Existing `repo` arg unchanged.
+- New tool `list_repo_groups`.
+
+### v1.27.0+ — Phase-6 infrastructure backlog
+**Goal:** Tighten testing surface as identified in PRD §6.
+
+- Section-boundary golden corpus.
+- Multi-format regression suite (real-world docs as a `corpus/` git submodule).
+- Byte-offset integrity check CLI (`verify_index`).
+- Stale-index simulation tests.
+- Embedding-drift simulation suite.
+- Cross-platform path test matrix (Windows/Posix).
+
+---
+
+### v2.0.0 — Major bet bundle (RESERVED — see § "Reserved for 2.x")
 **Goal:** Capstone release. Everything earned by v1.19.0 lights up.
 
 **Includes:**

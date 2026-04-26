@@ -1,6 +1,6 @@
 # jdocmunch-mcp
 
-**Version:** 1.20.0 | **Tests:** `pytest tests/ -q` (675 total)
+**Version:** 1.21.0 | **Tests:** `pytest tests/ -q` (691 total)
 
 ## Purpose
 Documentation section indexing for the jMunch suite. Companion to jcodemunch-mcp (which owns code symbols). Do NOT add code/docstring parsing here.
@@ -28,8 +28,30 @@ Documentation section indexing for the jMunch suite. Companion to jcodemunch-mcp
 | `hook-posttooluse` | PostToolUse hook: auto-reindex doc files after Edit/Write (reads stdin) |
 | `hook-precompact` | PreCompact hook: session snapshot before context compaction (reads stdin) |
 
+## 1.x compatibility contract (license-binding)
+
+Existing 1.x licensees must be able to upgrade between any two 1.x versions
+with zero surprise. This is a hard constraint, not a guideline.
+
+**Never on 1.x:**
+- Remove or rename an MCP tool. Aliases for any rename must stay in place forever.
+- Remove a `Section` field from `to_dict` output (additive only; new fields use the "omit when empty" convention).
+- Drop a runtime dependency that an existing user might rely on (e.g. tiktoken stays optional; bytes/4 fallback stays).
+- Force a reindex without auto-migrating on load. `INDEX_VERSION` bumps are allowed when the loader silently migrates v(N-1) → v(N) on first read.
+- Change the JSON wire format of any tool response in a way that breaks an existing consumer. New keys are fine; renames + removals are not.
+- Make a previously-default behavior raise. If we deprecate a flag value, keep it accepted (with a deprecation note in `_meta`) until a 2.x is approved.
+
+**Acceptable on 1.x:**
+- Add new tools, fields, response keys, env vars, kwargs (all defaulted to backwards-compat values).
+- Tighten internal behavior (faster algorithms, better defaults) when no public output changes.
+- Add new error returns for inputs that previously errored differently.
+- Add new opt-in code paths gated by env var or kwarg.
+
+**Reserved for 2.x (won't ship until a major-version license revision is planned):**
+- See `todo.md` § "Reserved for 2.x" for the canonical list.
+
 ## Architecture
-- INDEX_VERSION=3; version mismatch triggers full re-index
+- INDEX_VERSION=3; version mismatch triggers auto-migration on first load (NEVER a forced reindex on 1.x)
 - O(1) section lookup via `DocIndex.__post_init__` id dict
 - `pyyaml>=6.0` required (hard dep)
 - Hybrid search (v1.9.0): `search_sections` fuses BM25 + semantic cosine when embeddings exist. `use_embeddings` defaults to `"auto"` (embed when provider configured). `search_sections` params: `semantic` (None/auto, True, False), `semantic_only`, `semantic_weight` (0.0–1.0, default 0.5). `_meta.search_mode` reports `hybrid`/`semantic_only`/`lexical`.
