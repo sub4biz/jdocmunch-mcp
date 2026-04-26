@@ -45,6 +45,7 @@ from .tools.get_doc_health import get_doc_health
 from .tools.get_tutorial_path import get_tutorial_path
 from .tools.get_undocumented_symbols import get_undocumented_symbols
 from .tools.tune_weights import tune_weights
+from .tools.repo_group_tools import list_repo_groups, define_repo_group
 
 
 server = Server("jdocmunch-mcp")
@@ -223,9 +224,13 @@ async def list_tools() -> list[Tool]:
                     "role": {
                         "type": "string",
                         "description": "Optional v1.19+ role filter. Values: concept, tutorial, how_to, reference, api, example, troubleshooting, changelog, faq, other."
+                    },
+                    "repo_group": {
+                        "type": "string",
+                        "description": "v1.26+ — fan out across the named repo group (defined via define_repo_group). When set, the per-repo `repo` arg is ignored; results from each member repo are fused via RRF."
                     }
                 },
-                "required": ["repo", "query"]
+                "required": ["query"]
             }
         ),
         Tool(
@@ -704,6 +709,31 @@ async def list_tools() -> list[Tool]:
             }
         ),
         Tool(
+            name="list_repo_groups",
+            description=(
+                "List defined repo groups (v1.26+). Each group is a named alias for a "
+                "set of indexed repos that search_sections can fan out across via the "
+                "repo_group kwarg."
+            ),
+            inputSchema={"type": "object", "properties": {}}
+        ),
+        Tool(
+            name="define_repo_group",
+            description=(
+                "Create, replace, or delete a repo group (v1.26+). Empty repos list "
+                "deletes the group. Persisted to ~/.doc-index/_groups.jsonc (JSONC — "
+                "hand-edits welcome)."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "repos": {"type": "array", "items": {"type": "string"}}
+                },
+                "required": ["name", "repos"]
+            }
+        ),
+        Tool(
             name="tune_weights",
             description=(
                 "Online weight tuning. Reads ranking_events from "
@@ -822,7 +852,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             )
         elif name == "search_sections":
             result = search_sections(
-                repo=arguments["repo"],
+                repo=arguments.get("repo"),
                 query=arguments["query"],
                 doc_path=arguments.get("doc_path"),
                 max_results=arguments.get("max_results", 10),
@@ -830,6 +860,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 semantic_only=arguments.get("semantic_only", False),
                 semantic_weight=arguments.get("semantic_weight", 0.5),
                 role=arguments.get("role"),
+                repo_group=arguments.get("repo_group"),
                 storage_path=storage_path,
             )
         elif name == "get_section":
@@ -1000,6 +1031,14 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 repo=arguments.get("repo"),
                 min_events=arguments.get("min_events", 50),
                 dry_run=arguments.get("dry_run", False),
+                storage_path=storage_path,
+            )
+        elif name == "list_repo_groups":
+            result = list_repo_groups(storage_path=storage_path)
+        elif name == "define_repo_group":
+            result = define_repo_group(
+                name=arguments["name"],
+                repos=arguments["repos"],
                 storage_path=storage_path,
             )
         else:

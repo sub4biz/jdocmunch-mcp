@@ -10,9 +10,9 @@ from jdocmunch_mcp.server import list_tools, call_tool
 
 class TestListTools:
     @pytest.mark.asyncio
-    async def test_returns_33_tools(self):
+    async def test_returns_35_tools(self):
         tools = await list_tools()
-        assert len(tools) == 33
+        assert len(tools) == 35
 
     @pytest.mark.asyncio
     async def test_tool_names(self):
@@ -31,6 +31,7 @@ class TestListTools:
             "get_related_sections", "get_section_diff", "get_doc_health",
             "get_tutorial_path", "get_undocumented_symbols",
             "tune_weights",
+            "list_repo_groups", "define_repo_group",
         }
         assert names == expected
 
@@ -45,13 +46,16 @@ class TestListTools:
     async def test_required_fields_defined(self):
         tools = await list_tools()
         # Tools that need 'repo' should have it in required.
-        # Tools without arguments (e.g. doc_list_repos, analyze_perf, get_session_stats)
-        # legitimately have no 'required' clause.
+        # Tools without arguments (e.g. doc_list_repos, analyze_perf,
+        # get_session_stats) legitimately have no 'required' clause.
+        # search_sections requires only 'query' as of v1.26 (repo_group is
+        # an alternative to repo). define_repo_group requires name+repos.
         no_repo_required = {
             "index_local", "doc_index_repo", "doc_list_repos",
             "analyze_perf", "get_session_stats", "check_embedding_drift",
             "tune_weights",
-            # find_code_examples + link_code_to_symbols + v1.18 OpenAPI tools + lookup_term/list_terms all require repo
+            "list_repo_groups", "define_repo_group",
+            "search_sections",
         }
         for tool in tools:
             if tool.name not in no_repo_required:

@@ -8,8 +8,8 @@ from ..storage.token_tracker import estimate_savings, record_savings, cost_avoid
 
 
 def search_sections(
-    repo: str,
-    query: str,
+    repo: Optional[str] = None,
+    query: str = "",
     doc_path: Optional[str] = None,
     max_results: int = 10,
     semantic: Optional[bool] = None,
@@ -17,6 +17,7 @@ def search_sections(
     semantic_weight: float = 0.5,
     lexical_engine: str = "bm25",
     role: Optional[str] = None,
+    repo_group: Optional[str] = None,
     storage_path: Optional[str] = None,
 ) -> dict:
     """Search sections with BM25-style lexical + optional semantic fusion.
@@ -36,6 +37,76 @@ def search_sections(
       semantic_weight: Weight (0.0–1.0) of semantic component in hybrid fusion.
     """
     t0 = time.perf_counter()
+
+    # v1.26.0: repo_group fan-out. When set, runs the query against each
+    # constituent repo via this same function (single-repo mode), fuses
+    # the result lists with Reciprocal Rank Fusion, and returns a
+    # combined response. Per-repo errors are reported but never abort
+    # the fan-out.
+    if repo_group:
+        from ..storage import repo_groups as _rg
+        from ..retrieval.prune import reciprocal_rank_fusion
+
+        member_repos = _rg.resolve(repo_group, base_path=storage_path)
+        if not member_repos:
+            return {
+                "error": f"Repo group not found or empty: {repo_group!r}",
+                "_meta": {"latency_ms": int((time.perf_counter() - t0) * 1000)},
+            }
+
+        per_repo: list[dict] = []
+        rankings: list[list[str]] = []
+        result_pool: dict[str, dict] = {}
+        for member in member_repos:
+            sub = search_sections(
+                repo=member, query=query,
+                doc_path=doc_path,
+                max_results=max(max_results, 10),
+                semantic=semantic, semantic_only=semantic_only,
+                semantic_weight=semantic_weight,
+                lexical_engine=lexical_engine, role=role,
+                storage_path=storage_path,
+            )
+            per_repo.append({
+                "repo": member,
+                "result_count": sub.get("result_count", 0),
+                "error": sub.get("error"),
+            })
+            rows = sub.get("results") or []
+            ranking = []
+            for r in rows:
+                sid = r.get("id")
+                if sid:
+                    ranking.append(sid)
+                    result_pool.setdefault(sid, r)
+            rankings.append(ranking)
+
+        fused = reciprocal_rank_fusion(rankings, k=60)
+        merged = []
+        for sid, fused_score in fused[:max_results]:
+            row = result_pool.get(sid)
+            if row is not None:
+                row = dict(row)
+                row["_fused_score"] = float(fused_score)
+                merged.append(row)
+
+        return {
+            "repo_group": repo_group,
+            "members": member_repos,
+            "query": query,
+            "results": merged,
+            "result_count": len(merged),
+            "per_repo": per_repo,
+            "_meta": {
+                "latency_ms": int((time.perf_counter() - t0) * 1000),
+                "fusion": "rrf_k60",
+                "lexical_engine": lexical_engine,
+            },
+        }
+
+    if not repo:
+        return {"error": "Either repo or repo_group is required."}
+
     store = DocStore(base_path=storage_path)
     owner, name = store._resolve_repo(repo)
     index = store.load_index(owner, name)

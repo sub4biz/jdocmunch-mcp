@@ -371,7 +371,7 @@ Everything from the original "v2.0.0 capstone bundle" that can be re-engineered 
 - `parser/notebook_parser.py` rewrite: each cell becomes a `Section` with `metadata.cell_type` ∈ `{markdown, code}` and `metadata.outputs: [{type, text|html|image_b64_truncated}]`. Code cells + immediate output share `metadata.cell_pair_id` for "show me example with output" retrieval.
 - `INDEX_VERSION` 3 → 4 with auto-migration on first load (silent upgrade — old indexes still readable, new fields populated on next reindex). Per the 1.x compatibility contract, no forced reindex.
 
-### v1.26.0 — Cross-repo concept graph
+### v1.26.0 — Cross-repo concept graph — ✅ SHIPPED (2026-04-26)
 **Goal:** Monorepo-friendly fan-out search.
 
 - `~/.doc-index/_groups.jsonc` config: `{"docs-everywhere": ["python-docs", "internal-runbook", "openapi-spec"]}`.
