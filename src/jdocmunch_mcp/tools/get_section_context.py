@@ -165,4 +165,14 @@ def get_section_context(
         out["_meta"]["related_count"] = len(related)
     if strip_boilerplate:
         out["_meta"]["boilerplate_stripped_bytes"] = boilerplate_stripped_bytes
+    # v1.32.0: citation block.
+    out["_meta"]["citation"] = {
+        "repo": f"{owner}/{name}",
+        "doc_path": sec.get("doc_path", ""),
+        "section_id": section_id,
+        "byte_start": int(sec.get("byte_start", 0) or 0),
+        "byte_end": int(sec.get("byte_end", 0) or 0),
+        "content_hash": sec.get("content_hash", ""),
+        "indexed_at": index.indexed_at,
+    }
     return out

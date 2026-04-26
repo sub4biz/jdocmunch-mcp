@@ -97,6 +97,21 @@ def get_sections(
     }
     if strip_boilerplate:
         meta["boilerplate_stripped_bytes"] = total_boilerplate_stripped
+    # v1.32.0: per-section citation block.
+    meta["citations"] = []
+    for entry in results:
+        sec = entry.get("section") if isinstance(entry, dict) else None
+        if not isinstance(sec, dict):
+            continue
+        meta["citations"].append({
+            "repo": f"{owner}/{name}",
+            "doc_path": sec.get("doc_path", ""),
+            "section_id": sec.get("id", ""),
+            "byte_start": int(sec.get("byte_start", 0) or 0),
+            "byte_end": int(sec.get("byte_end", 0) or 0),
+            "content_hash": sec.get("content_hash", ""),
+            "indexed_at": index.indexed_at,
+        })
     return {
         "sections": results,
         "section_count": len(results),

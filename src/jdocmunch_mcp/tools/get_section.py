@@ -81,6 +81,16 @@ def get_section(
     }
     if strip_boilerplate:
         meta["boilerplate_stripped_bytes"] = boilerplate_stripped_bytes
+    # v1.32.0: citation block — verifiable provenance for the returned content.
+    meta["citation"] = {
+        "repo": f"{owner}/{name}",
+        "doc_path": sec.get("doc_path", ""),
+        "section_id": section_id,
+        "byte_start": int(sec.get("byte_start", 0) or 0),
+        "byte_end": int(sec.get("byte_end", 0) or 0),
+        "content_hash": sec.get("content_hash", ""),
+        "indexed_at": index.indexed_at,
+    }
     return {
         "section": result_sec,
         "_meta": meta,

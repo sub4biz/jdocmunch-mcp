@@ -17,6 +17,7 @@ def search_sections(
     semantic_weight: float = 0.5,
     lexical_engine: str = "bm25",
     role: Optional[str] = None,
+    profile: Optional[str] = None,
     repo_group: Optional[str] = None,
     storage_path: Optional[str] = None,
 ) -> dict:
@@ -37,6 +38,24 @@ def search_sections(
       semantic_weight: Weight (0.0–1.0) of semantic component in hybrid fusion.
     """
     t0 = time.perf_counter()
+
+    # v1.32.0: task-aware retrieval profiles. Each profile maps to a small
+    # role-boost bundle (sections matching listed roles get up-ranked among
+    # the BM25 result candidates). Explicit role= always wins over the
+    # profile's role-boost set; profile is a hint, not a hard filter.
+    PROFILES = {
+        "install":   {"boost_roles": {"how_to", "tutorial", "example"}},
+        "debug":     {"boost_roles": {"troubleshooting", "faq", "example"}},
+        "explain":   {"boost_roles": {"concept", "reference", "tutorial"}},
+        "api":       {"boost_roles": {"api", "reference", "example"}},
+    }
+    profile_norm = (profile or "").strip().lower() or None
+    profile_def = PROFILES.get(profile_norm) if profile_norm else None
+    if profile_norm and profile_def is None:
+        return {
+            "error": f"Unknown profile: {profile!r}. "
+                     f"Use one of: {sorted(PROFILES.keys())}.",
+        }
 
     # v1.26.0: repo_group fan-out. When set, runs the query against each
     # constituent repo via this same function (single-repo mode), fuses
@@ -154,6 +173,17 @@ def search_sections(
         role_norm = role.strip().lower()
         results = [r for r in results
                    if (r.get("metadata") or {}).get("role") == role_norm][:max_results]
+    elif profile_def:
+        # Profile mode: stable-sort the candidate list so sections in the
+        # boost set move ahead of sections that are not, while preserving
+        # within-set ordering by BM25/RRF score.
+        boost = profile_def["boost_roles"]
+        in_boost = []
+        out_boost = []
+        for r in results:
+            r_role = (r.get("metadata") or {}).get("role") or ""
+            (in_boost if r_role in boost else out_boost).append(r)
+        results = (in_boost + out_boost)[:max_results]
     else:
         results = results[:max_results]
 
@@ -192,6 +222,9 @@ def search_sections(
     meta["freshness"] = freshness_summary
     if role:
         meta["role_filter"] = role.strip().lower()
+    if profile_norm:
+        meta["profile"] = profile_norm
+        meta["profile_boost_roles"] = sorted(profile_def["boost_roles"])
     attach_confidence(query, results, meta)
 
     # v1.23.0: append a ranking event for offline tuning.
