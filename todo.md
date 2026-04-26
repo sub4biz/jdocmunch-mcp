@@ -2,8 +2,20 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.37.0)
-**Status:** v1.10.0–v1.37.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.38.0)
+**Status:** v1.10.0–v1.38.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.38.0 — get_section_summary metadata-only retrieval — ✅ SHIPPED (2026-04-26)
+**Goal:** Fill the gap between `get_toc` (brief handles) and `get_section` (full content). New `get_section_summary` tool returns the full indexed metadata for one section — title, summary, role, tags, metadata, parent_id, children, content_hash, byte_start/end, plus a derived `byte_length` — without paying for the byte-range read. Pairs with v1.37's `section_neighbors`: both handle-only navigation primitives.
+
+**Deliverables:**
+- New `tools/get_section_summary.py` — single section, no content fetch.
+- Registered as 38th MCP tool. Schema requires `repo` + `section_id`.
+- 6 tests in `tests/test_v1_38_0.py` covering error paths, content-exclusion contract, byte_length derivation, _meta shape.
+- `tests/test_server.py` tool count 37 → 38.
+
+**Replay gate:** all 7 fixtures pass at 1.0 nDCG/MRR/Recall vs v1.37.0.
+**Tests:** 936 → 942 (+6).
 
 ### v1.37.0 — section_neighbors navigation tool — ✅ SHIPPED (2026-04-26)
 **Goal:** Cheap document-order navigation. New `section_neighbors` MCP tool returns prev/next siblings (in `byte_start` order, restricted to same `doc_path`), parent (via `parent_id`), and first child for a given section. Handles only — `{id, title, level, doc_path}` — no content reads. Fills the gap between `get_toc` (whole repo) and `get_section_context` (target+ancestors+children with content).

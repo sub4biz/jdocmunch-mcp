@@ -22,6 +22,7 @@ from .tools.get_section import get_section
 from .tools.get_sections import get_sections
 from .tools.get_section_context import get_section_context
 from .tools.section_neighbors import section_neighbors
+from .tools.get_section_summary import get_section_summary
 from .tools.delete_index import delete_index
 from .tools.get_broken_links import get_broken_links
 from .tools.get_doc_coverage import get_doc_coverage
@@ -370,6 +371,24 @@ async def list_tools() -> list[Tool]:
         Tool(
             name="section_neighbors",
             description="v1.37+ — return prev/next siblings (in document order), parent, and first child for a section. Handles only (id, title, level, doc_path) — no content. Use for fast sequential navigation without re-querying search_sections.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "Repository identifier (owner/repo or just repo name)"
+                    },
+                    "section_id": {
+                        "type": "string",
+                        "description": "Target section ID from get_toc, search_sections, etc."
+                    }
+                },
+                "required": ["repo", "section_id"]
+            }
+        ),
+        Tool(
+            name="get_section_summary",
+            description="v1.38+ — return full indexed metadata (title, summary, role, tags, metadata, parent_id, children, content_hash, byte_start/end, byte_length) for one section without fetching content. Use to inspect role/tags before deciding whether to read the content via get_section.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -974,6 +993,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             )
         elif name == "section_neighbors":
             result = section_neighbors(
+                repo=arguments["repo"],
+                section_id=arguments["section_id"],
+                storage_path=storage_path,
+            )
+        elif name == "get_section_summary":
+            result = get_section_summary(
                 repo=arguments["repo"],
                 section_id=arguments["section_id"],
                 storage_path=storage_path,
