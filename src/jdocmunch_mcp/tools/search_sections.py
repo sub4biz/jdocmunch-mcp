@@ -29,6 +29,8 @@ def search_sections(
     exclude_tags: Optional[list] = None,
     roles: Optional[list] = None,
     exclude_roles: Optional[list] = None,
+    min_byte_length: Optional[int] = None,
+    max_byte_length: Optional[int] = None,
     storage_path: Optional[str] = None,
 ) -> dict:
     """Search sections with BM25-style lexical + optional semantic fusion.
@@ -223,6 +225,21 @@ def search_sections(
                 not in unwanted_roles
             ]
 
+    # v1.53.0: optional byte-length range filter. Drops stub sections
+    # (one-line definitions) or oversized dumps. Computed from
+    # byte_end - byte_start.
+    if min_byte_length is not None or max_byte_length is not None:
+        def _len_ok(r: dict) -> bool:
+            bs = int(r.get("byte_start", 0) or 0)
+            be = int(r.get("byte_end", 0) or 0)
+            length = max(0, be - bs)
+            if min_byte_length is not None and length < min_byte_length:
+                return False
+            if max_byte_length is not None and length > max_byte_length:
+                return False
+            return True
+        results = [r for r in results if _len_ok(r)]
+
     # v1.51.0: optional exclude_tags filter. ANY-match semantics —
     # drop section if it contains any listed tag.
     if exclude_tags:
@@ -350,6 +367,10 @@ def search_sections(
     if exclude_roles:
         meta["exclude_roles_filter"] = sorted({r.strip().lower() for r in exclude_roles
                                                if isinstance(r, str) and r.strip()})
+    if min_byte_length is not None:
+        meta["min_byte_length"] = int(min_byte_length)
+    if max_byte_length is not None:
+        meta["max_byte_length"] = int(max_byte_length)
     attach_confidence(query, results, meta)
 
     # v1.33.0: per-result answerability + quotability scores. Read content

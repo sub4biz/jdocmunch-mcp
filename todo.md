@@ -2,8 +2,20 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.52.0)
-**Status:** v1.10.0–v1.52.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.53.0)
+**Status:** v1.10.0–v1.53.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.53.0 — byte-length range filter on search_sections — ✅ SHIPPED (2026-04-26)
+**Goal:** Drop stub sections (one-line definitions) and oversized dumps. New `min_byte_length` / `max_byte_length` args on `search_sections` filter by computed `byte_end - byte_start`. Pure additive.
+
+**Deliverables:**
+- `min_byte_length: Optional[int]` and `max_byte_length: Optional[int]` args threaded through Python signature, schema, dispatch.
+- Inclusive on both ends; either may be omitted independently.
+- `_meta.min_byte_length` / `_meta.max_byte_length` echoed when set.
+- 5 tests in `tests/test_v1_53_0.py` covering open-ended ranges, both-bounds, unsatisfiable range, default-off, schema parity.
+
+**Replay gate:** all 7 fixtures pass at 1.0 nDCG/MRR/Recall vs v1.52.0.
+**Tests:** 1062 → 1068 (+6).
 
 ### v1.52.0 — roles / exclude_roles plural ANY-match filters — ✅ SHIPPED (2026-04-26)
 **Goal:** Complete the role-axis filter parity with v1.45 + v1.51 tags. New `roles: list[str]` (positive ANY-match) and `exclude_roles: list[str]` (negative ANY-match) on `search_sections`. Existing singular `role: str` (exact post-filter) keeps working unchanged.

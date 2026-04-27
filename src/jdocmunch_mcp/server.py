@@ -302,6 +302,16 @@ async def list_tools() -> list[Tool]:
                         "items": {"type": "string"},
                         "description": "v1.52+ — drop sections whose metadata.role matches ANY listed role. Case-insensitive. Stacks with `roles` (the result must match an included role and not match any excluded role)."
                     },
+                    "min_byte_length": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "v1.53+ — drop sections shorter than this many bytes (byte_end - byte_start). Use to filter out stubs / one-liners."
+                    },
+                    "max_byte_length": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "v1.53+ — drop sections longer than this many bytes. Use to filter out oversized dumps. Stacks with min_byte_length."
+                    },
                     "repo_group": {
                         "type": "string",
                         "description": "v1.26+ — fan out across the named repo group (defined via define_repo_group). When set, the per-repo `repo` arg is ignored; results from each member repo are fused via RRF."
@@ -1206,6 +1216,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 exclude_tags=arguments.get("exclude_tags"),
                 roles=arguments.get("roles"),
                 exclude_roles=arguments.get("exclude_roles"),
+                min_byte_length=arguments.get("min_byte_length"),
+                max_byte_length=arguments.get("max_byte_length"),
                 storage_path=storage_path,
             )
         elif name == "get_section":
