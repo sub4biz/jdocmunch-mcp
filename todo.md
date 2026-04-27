@@ -2,8 +2,21 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.48.0)
-**Status:** v1.10.0–v1.48.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.49.0)
+**Status:** v1.10.0–v1.49.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.49.0 — get_section_excerpts batch preview — ✅ SHIPPED (2026-04-26)
+**Goal:** Batch counterpart to v1.41's `get_section_excerpt`. Same v1.48 partial-failure contract: per-id errors in-line, order preserved, found_count/missing_count summaries. `_meta.tokens_saved` aggregates byte savings across the whole batch.
+
+**Deliverables:**
+- New `tools/get_section_excerpts.py`. Reuses v1.41's `_safe_truncate` helper (UTF-8 boundary-safe, trims to last newline, `…` marker on truncation).
+- Default `max_bytes=500` per section.
+- Registered as 46th MCP tool. Schema requires `repo` + `section_ids: array<string>`; optional `max_bytes`.
+- 8 tests in `tests/test_v1_49_0.py` covering empty list, all-found-with-truncation, partial-missing, savings aggregation, error paths, schema parity.
+- `tests/test_server.py` tool count 45 → 46.
+
+**Replay gate:** all 7 fixtures pass at 1.0 nDCG/MRR/Recall vs v1.48.0.
+**Tests:** 1029 → 1037 (+8).
 
 ### v1.48.0 — get_section_summaries batch metadata — ✅ SHIPPED (2026-04-26)
 **Goal:** Batch counterpart to v1.38's `get_section_summary`. Resolve indexed metadata for many section_ids in one call against a single `load_index()` — saves N round-trips when an agent has multiple search hits.

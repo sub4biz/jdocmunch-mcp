@@ -27,6 +27,7 @@ from .tools.get_section_summaries import get_section_summaries
 from .tools.get_orphan_sections import get_orphan_sections
 from .tools.get_section_path import get_section_path
 from .tools.get_section_excerpt import get_section_excerpt
+from .tools.get_section_excerpts import get_section_excerpts
 from .tools.get_section_descendants import get_section_descendants
 from .tools.get_all_tags import get_all_tags
 from .tools.get_recent_changes import get_recent_changes
@@ -481,6 +482,30 @@ async def list_tools() -> list[Tool]:
                     }
                 },
                 "required": ["repo", "section_id"]
+            }
+        ),
+        Tool(
+            name="get_section_excerpts",
+            description="v1.49+ — batch counterpart to get_section_excerpt. Resolves N previews in one call against a single index load. Per-id errors reported in-line. _meta.tokens_saved aggregates byte savings across the batch.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "Repository identifier"
+                    },
+                    "section_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of section IDs. Order preserved; each entry carries `requested_id` for correlation."
+                    },
+                    "max_bytes": {
+                        "type": "integer",
+                        "default": 500,
+                        "description": "Per-section soft cap in UTF-8 bytes."
+                    }
+                },
+                "required": ["repo", "section_ids"]
             }
         ),
         Tool(
@@ -1206,6 +1231,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             result = get_section_excerpt(
                 repo=arguments["repo"],
                 section_id=arguments["section_id"],
+                max_bytes=arguments.get("max_bytes", 500),
+                storage_path=storage_path,
+            )
+        elif name == "get_section_excerpts":
+            result = get_section_excerpts(
+                repo=arguments["repo"],
+                section_ids=arguments["section_ids"],
                 max_bytes=arguments.get("max_bytes", 500),
                 storage_path=storage_path,
             )
