@@ -2,8 +2,22 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.56.0)
-**Status:** v1.10.0–v1.56.0 shipped (+ hotfixes v1.36.1/2/3). **Tool surface hits 50.** 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.57.0)
+**Status:** v1.10.0–v1.57.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.57.0 — search_titles fast title-only navigation — ✅ SHIPPED (2026-04-26)
+**Goal:** Different from `search_sections` (full hybrid retrieval). Title-only token-overlap match for the navigation case: agent has a heading text from a URL fragment / screenshot / prior result and just wants the section_id. Pure-Python scorer, no embeddings, no posting-list traversal.
+
+**Deliverables:**
+- New `tools/search_titles.py`. Scoring: exact-equality (+100), whole-phrase substring (+30), prefix bonus (+10), token-overlap (+5/term). Lowercased comparison.
+- Stable ranking: `(-score, section_id)` — same deterministic tie-break as v1.36.1's BM25 fix.
+- Handle-only output: `{id, title, level, doc_path, _score}`. No content, no metadata.
+- Registered as 51st MCP tool. Schema requires `repo` + `query`; optional `max_results` (default 10, min 1).
+- 10 tests in `tests/test_v1_57_0.py` covering exact match, substring, token overlap, no-match, max_results cap, handle shape, score positivity, determinism, error paths, schema parity.
+- `tests/test_server.py` tool count 50 → 51.
+
+**Replay gate:** all 7 fixtures pass at 1.0 nDCG/MRR/Recall vs v1.56.0.
+**Tests:** 1095 → 1106 (+11).
 
 ### v1.56.0 — get_index_overview snapshot — ✅ SHIPPED (2026-04-26)
 **Goal:** Single-call repo snapshot composing v1.46 (tags), v1.50 (roles), v1.55 (docs/format) aggregations. New `get_index_overview(repo, top_n=5)` returns doc/section counts, total_byte_size, format_breakdown, top_tags, top_roles, indexed_at — the "what is this repo at a glance?" answer.

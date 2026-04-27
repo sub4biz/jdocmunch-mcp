@@ -20,6 +20,7 @@ from .tools.get_toc import get_toc
 from .tools.get_toc_tree import get_toc_tree
 from .tools.get_document_outline import get_document_outline
 from .tools.search_sections import search_sections
+from .tools.search_titles import search_titles
 from .tools.get_section import get_section
 from .tools.get_sections import get_sections
 from .tools.get_section_context import get_section_context
@@ -355,6 +356,29 @@ async def list_tools() -> list[Tool]:
                     }
                 },
                 "required": ["query"]
+            }
+        ),
+        Tool(
+            name="search_titles",
+            description="v1.57+ — fast title-only token-overlap match. Different from search_sections (full hybrid retrieval). Use for navigation: 'find the section whose heading text matches X'. Handle-only output ({id, title, level, doc_path, _score}); no content reads, no embeddings.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "Repository identifier"
+                    },
+                    "query": {
+                        "type": "string",
+                        "description": "Heading text to match against"
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "default": 10,
+                        "minimum": 1
+                    }
+                },
+                "required": ["repo", "query"]
             }
         ),
         Tool(
@@ -1284,6 +1308,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 exclude_roles=arguments.get("exclude_roles"),
                 min_byte_length=arguments.get("min_byte_length"),
                 max_byte_length=arguments.get("max_byte_length"),
+                storage_path=storage_path,
+            )
+        elif name == "search_titles":
+            result = search_titles(
+                repo=arguments["repo"],
+                query=arguments["query"],
+                max_results=arguments.get("max_results", 10),
                 storage_path=storage_path,
             )
         elif name == "get_section":
