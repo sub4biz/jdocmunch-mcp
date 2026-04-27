@@ -2,8 +2,22 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.55.0)
-**Status:** v1.10.0–v1.55.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.56.0)
+**Status:** v1.10.0–v1.56.0 shipped (+ hotfixes v1.36.1/2/3). **Tool surface hits 50.** 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.56.0 — get_index_overview snapshot — ✅ SHIPPED (2026-04-26)
+**Goal:** Single-call repo snapshot composing v1.46 (tags), v1.50 (roles), v1.55 (docs/format) aggregations. New `get_index_overview(repo, top_n=5)` returns doc/section counts, total_byte_size, format_breakdown, top_tags, top_roles, indexed_at — the "what is this repo at a glance?" answer.
+
+**Deliverables:**
+- New `tools/get_index_overview.py`. Single pass over `index.sections`; one stat per cached file. Stable sort orders.
+- `format_breakdown:[{format, doc_count, section_count}]` per extension.
+- `top_n=0` omits both lists; full distributions remain available via the v1.46/v1.50 discovery tools.
+- Registered as 50th MCP tool. Schema requires `repo`.
+- 10 tests in `tests/test_v1_56_0.py` covering counts, format breakdown, top-N tag/role surfaces, top_n=0/2 edge cases, sort order, error paths, schema parity.
+- `tests/test_server.py` tool count 49 → 50.
+
+**Replay gate:** all 7 fixtures pass at 1.0 nDCG/MRR/Recall vs v1.55.0.
+**Tests:** 1085 → 1095 (+10).
 
 ### v1.55.0 — list_docs flat per-doc inventory — ✅ SHIPPED (2026-04-26)
 **Goal:** Doc-level navigation primitive. New `list_docs(repo)` returns every indexed document with `{doc_path, section_count, format, byte_size}`. Lighter than `get_toc_tree` (full section trees per doc) and complements `list_repos` (which enumerates repos).

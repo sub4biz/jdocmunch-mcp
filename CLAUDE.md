@@ -1,6 +1,6 @@
 # jdocmunch-mcp
 
-**Version:** 1.55.0 | **Tests:** `pytest tests/ -q` (1085 total)
+**Version:** 1.56.0 | **Tests:** `pytest tests/ -q` (1095 total)
 
 ## Purpose
 Documentation section indexing for the jMunch suite. Companion to jcodemunch-mcp (which owns code symbols). Do NOT add code/docstring parsing here.

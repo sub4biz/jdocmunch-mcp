@@ -15,6 +15,7 @@ from .tools.index_local import index_local
 from .tools.index_repo import index_repo
 from .tools.list_repos import list_repos
 from .tools.list_docs import list_docs
+from .tools.get_index_overview import get_index_overview
 from .tools.get_toc import get_toc
 from .tools.get_toc_tree import get_toc_tree
 from .tools.get_document_outline import get_document_outline
@@ -155,6 +156,26 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {}
+            }
+        ),
+        Tool(
+            name="get_index_overview",
+            description="v1.56+ — single-call repo snapshot: doc_count, section_count, total_byte_size, format_breakdown, top_tags, top_roles, indexed_at. Composition of v1.46/v1.50/v1.55 aggregations. Use for 'what is this repo at a glance?'",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "Repository identifier"
+                    },
+                    "top_n": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "default": 5,
+                        "description": "Top-N tags and roles to surface. 0 omits both lists; full distributions still available via get_all_tags / get_all_roles."
+                    }
+                },
+                "required": ["repo"]
             }
         ),
         Tool(
@@ -1213,6 +1234,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         elif name == "list_docs":
             result = list_docs(
                 repo=arguments["repo"],
+                storage_path=storage_path,
+            )
+        elif name == "get_index_overview":
+            result = get_index_overview(
+                repo=arguments["repo"],
+                top_n=arguments.get("top_n", 5),
                 storage_path=storage_path,
             )
         elif name == "get_toc":
