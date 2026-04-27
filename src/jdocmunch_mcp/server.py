@@ -28,6 +28,7 @@ from .tools.get_section_path import get_section_path
 from .tools.get_section_excerpt import get_section_excerpt
 from .tools.get_section_descendants import get_section_descendants
 from .tools.get_all_tags import get_all_tags
+from .tools.get_recent_changes import get_recent_changes
 from .tools.delete_index import delete_index
 from .tools.get_broken_links import get_broken_links
 from .tools.get_doc_coverage import get_doc_coverage
@@ -412,6 +413,30 @@ async def list_tools() -> list[Tool]:
                     }
                 },
                 "required": ["repo", "section_id"]
+            }
+        ),
+        Tool(
+            name="get_recent_changes",
+            description="v1.47+ — list sections whose source has drifted from index state (edited_uncommitted or stale_index buckets via the v1.16 FreshnessProbe). Pre-flight check before deciding whether to re-index. Handle-only — no content reads.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "Repository identifier"
+                    },
+                    "include_stale": {
+                        "type": "boolean",
+                        "default": True,
+                        "description": "Include sections in stale_index bucket (byte range no longer hashes the same)."
+                    },
+                    "include_edited": {
+                        "type": "boolean",
+                        "default": True,
+                        "description": "Include sections in edited_uncommitted bucket (file changed but this section's range still matches)."
+                    }
+                },
+                "required": ["repo"]
             }
         ),
         Tool(
@@ -1169,6 +1194,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             result = get_all_tags(
                 repo=arguments["repo"],
                 min_section_count=arguments.get("min_section_count", 1),
+                storage_path=storage_path,
+            )
+        elif name == "get_recent_changes":
+            result = get_recent_changes(
+                repo=arguments["repo"],
+                include_stale=arguments.get("include_stale", True),
+                include_edited=arguments.get("include_edited", True),
                 storage_path=storage_path,
             )
         elif name == "delete_index":

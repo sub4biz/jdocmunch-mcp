@@ -2,8 +2,23 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.46.0)
-**Status:** v1.10.0–v1.46.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.47.0)
+**Status:** v1.10.0–v1.47.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.47.0 — get_recent_changes drift surface — ✅ SHIPPED (2026-04-26)
+**Goal:** Surface sections currently in `edited_uncommitted` or `stale_index` buckets via the v1.16 FreshnessProbe. Pre-flight check before deciding whether to re-index — `get_doc_health` exposes counts; this returns the actual section list.
+
+**Deliverables:**
+- New `tools/get_recent_changes.py`. Walks every section through FreshnessProbe; reports `{id, title, doc_path, level, freshness}` for non-fresh entries.
+- Optional `include_stale` / `include_edited` flags (default both True) let agents narrow the report.
+- Filters synthetic level-0 doc-roots; sorts by `(doc_path, id)` for stability.
+- Returns per-bucket counts in `by_bucket` for quick aggregation.
+- Registered as 44th MCP tool. Schema requires `repo`.
+- 9 tests in `tests/test_v1_47_0.py` covering clean-index empty result, edited-file detection, stale_index detection, include flag filtering, synthetic-root exclusion, handle shape, error paths, schema parity.
+- `tests/test_server.py` tool count 43 → 44.
+
+**Replay gate:** all 7 fixtures pass at 1.0 nDCG/MRR/Recall vs v1.46.0.
+**Tests:** 1012 → 1021 (+9).
 
 ### v1.46.0 — get_all_tags discovery tool — ✅ SHIPPED (2026-04-26)
 **Goal:** Discovery companion to v1.45's `tags` filter. New `get_all_tags(repo)` returns every unique tag across the repo with per-tag section counts. Lets agents learn what tag namespaces exist before constructing a tag-filtered query — no more "did anyone use #api or is it #API"-guessing.
