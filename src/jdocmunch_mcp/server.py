@@ -30,6 +30,7 @@ from .tools.get_section_excerpt import get_section_excerpt
 from .tools.get_section_excerpts import get_section_excerpts
 from .tools.get_section_descendants import get_section_descendants
 from .tools.get_all_tags import get_all_tags
+from .tools.get_all_roles import get_all_roles
 from .tools.get_recent_changes import get_recent_changes
 from .tools.delete_index import delete_index
 from .tools.get_broken_links import get_broken_links
@@ -436,6 +437,26 @@ async def list_tools() -> list[Tool]:
                         "type": "boolean",
                         "default": True,
                         "description": "Include sections in edited_uncommitted bucket (file changed but this section's range still matches)."
+                    }
+                },
+                "required": ["repo"]
+            }
+        ),
+        Tool(
+            name="get_all_roles",
+            description="v1.50+ — list every distinct role classification across the repo with per-role section counts and id samples. Companion to v1.46 get_all_tags. Sections without metadata.role are bucketed under 'unknown'. Use to discover what roles exist before constructing a `role=` or `profile=` query.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "Repository identifier"
+                    },
+                    "sample_size": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "default": 3,
+                        "description": "How many section_ids to surface per role. 0 omits samples."
                     }
                 },
                 "required": ["repo"]
@@ -1252,6 +1273,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             result = get_all_tags(
                 repo=arguments["repo"],
                 min_section_count=arguments.get("min_section_count", 1),
+                storage_path=storage_path,
+            )
+        elif name == "get_all_roles":
+            result = get_all_roles(
+                repo=arguments["repo"],
+                sample_size=arguments.get("sample_size", 3),
                 storage_path=storage_path,
             )
         elif name == "get_recent_changes":
