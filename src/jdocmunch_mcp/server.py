@@ -27,6 +27,7 @@ from .tools.get_orphan_sections import get_orphan_sections
 from .tools.get_section_path import get_section_path
 from .tools.get_section_excerpt import get_section_excerpt
 from .tools.get_section_descendants import get_section_descendants
+from .tools.get_all_tags import get_all_tags
 from .tools.delete_index import delete_index
 from .tools.get_broken_links import get_broken_links
 from .tools.get_doc_coverage import get_doc_coverage
@@ -411,6 +412,26 @@ async def list_tools() -> list[Tool]:
                     }
                 },
                 "required": ["repo", "section_id"]
+            }
+        ),
+        Tool(
+            name="get_all_tags",
+            description="v1.46+ — list every unique #hashtag across the repo with per-tag section counts. Companion to the v1.45 `tags` filter on search_sections — use this to discover what tag namespaces exist before constructing a tag-filtered query. Lowercase-normalized.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "Repository identifier"
+                    },
+                    "min_section_count": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "default": 1,
+                        "description": "Drop tags appearing in fewer than this many sections (filter out typos)."
+                    }
+                },
+                "required": ["repo"]
             }
         ),
         Tool(
@@ -1142,6 +1163,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 repo=arguments["repo"],
                 section_id=arguments["section_id"],
                 max_depth=arguments.get("max_depth"),
+                storage_path=storage_path,
+            )
+        elif name == "get_all_tags":
+            result = get_all_tags(
+                repo=arguments["repo"],
+                min_section_count=arguments.get("min_section_count", 1),
                 storage_path=storage_path,
             )
         elif name == "delete_index":

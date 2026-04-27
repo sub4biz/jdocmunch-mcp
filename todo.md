@@ -2,8 +2,21 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.45.0)
-**Status:** v1.10.0–v1.45.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.46.0)
+**Status:** v1.10.0–v1.46.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.46.0 — get_all_tags discovery tool — ✅ SHIPPED (2026-04-26)
+**Goal:** Discovery companion to v1.45's `tags` filter. New `get_all_tags(repo)` returns every unique tag across the repo with per-tag section counts. Lets agents learn what tag namespaces exist before constructing a tag-filtered query — no more "did anyone use #api or is it #API"-guessing.
+
+**Deliverables:**
+- New `tools/get_all_tags.py`. Lowercase + strip normalization (matches v1.45 filter normalization). Per-section dedupe before aggregating counts. Stable sort (count desc, tag asc).
+- Optional `min_section_count` arg (default 1) drops single-occurrence tags — useful for filtering out typos.
+- Registered as 43rd MCP tool. Schema requires `repo`.
+- 9 tests in `tests/test_v1_46_0.py` covering counts, sort order, min_section_count threshold, no-tags repo, error paths, schema parity.
+- `tests/test_server.py` tool count 42 → 43.
+
+**Replay gate:** all 7 fixtures pass at 1.0 nDCG/MRR/Recall vs v1.45.0.
+**Tests:** 1003 → 1012 (+9).
 
 ### v1.45.0 — tags filter on search_sections — ✅ SHIPPED (2026-04-26)
 **Goal:** Per-tag scoping. New `tags: list[str]` arg on `search_sections` restricts results to sections whose `Section.tags` (auto-extracted from `#hashtag` markers in content via `extract_tags`) contains every listed tag. AND semantics, case-insensitive.
