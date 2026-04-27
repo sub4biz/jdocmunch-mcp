@@ -2,8 +2,20 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.44.0)
-**Status:** v1.10.0–v1.44.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.45.0)
+**Status:** v1.10.0–v1.45.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.45.0 — tags filter on search_sections — ✅ SHIPPED (2026-04-26)
+**Goal:** Per-tag scoping. New `tags: list[str]` arg on `search_sections` restricts results to sections whose `Section.tags` (auto-extracted from `#hashtag` markers in content via `extract_tags`) contains every listed tag. AND semantics, case-insensitive.
+
+**Deliverables:**
+- `tags: Optional[list]` arg threaded through Python signature, schema, dispatch.
+- Filter normalizes tags to lowercase + strip; empty/non-string entries dropped before matching. Empty list treated as no filter.
+- `_meta.tags_filter` echoes the normalized set when active.
+- 7 tests in `tests/test_v1_45_0.py` covering single-tag, two-tag AND, unknown tag, case insensitivity, empty list, default-off, schema parity.
+
+**Replay gate:** all 7 fixtures pass at 1.0 nDCG/MRR/Recall vs v1.44.0.
+**Tests:** 996 → 1003 (+7). **Tests crossed 1000.**
 
 ### v1.44.0 — heading-level filters on search_sections + replay CI gate fix — ✅ SHIPPED (2026-04-26)
 **Goal:** Two wins. (a) `min_level` / `max_level` args on `search_sections` restrict results to a heading-depth range. Pure additive. (b) Bump strict-replay CI gate 0.02→0.06 to absorb the same Windows/Linux BM25 variance the v1.36.x test fixes addressed — release-time `Replay` workflow had been silently failing since v1.32.0.
