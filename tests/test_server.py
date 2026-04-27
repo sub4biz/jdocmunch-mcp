@@ -10,9 +10,9 @@ from jdocmunch_mcp.server import list_tools, call_tool
 
 class TestListTools:
     @pytest.mark.asyncio
-    async def test_returns_47_tools(self):
+    async def test_returns_48_tools(self):
         tools = await list_tools()
-        assert len(tools) == 47
+        assert len(tools) == 48
 
     @pytest.mark.asyncio
     async def test_tool_names(self):
@@ -22,7 +22,8 @@ class TestListTools:
             "index_local", "doc_index_repo", "doc_list_repos",
             "get_toc", "get_toc_tree", "get_document_outline",
             "search_sections", "get_section", "get_sections", "get_section_context",
-            "section_neighbors", "get_section_summary", "get_section_summaries",
+            "section_neighbors", "describe_section",
+            "get_section_summary", "get_section_summaries",
             "get_orphan_sections", "get_section_path", "get_section_excerpt",
             "get_section_excerpts", "get_section_descendants", "get_all_tags",
             "get_all_roles", "get_recent_changes", "delete_index",

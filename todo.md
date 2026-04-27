@@ -2,8 +2,22 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.53.0)
-**Status:** v1.10.0–v1.53.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.54.0)
+**Status:** v1.10.0–v1.54.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.54.0 — describe_section consolidated handle bundle — ✅ SHIPPED (2026-04-26)
+**Goal:** Round-trip elimination. New `describe_section(repo, section_id)` returns the union of `get_section_summary` + `get_section_path` + `section_neighbors` in one call against a single `load_index()`. Saves three round-trips for the common "tell me everything about this section without content" pattern.
+
+**Deliverables:**
+- New `tools/describe_section.py`. Output composes `section` (full metadata view minus content + derived `byte_length`), `path` (root → target ancestors, handle-only), `depth`, `neighbors` (`{prev, next, parent, first_child, child_count}`).
+- Cycle-protected on the parent walk; same-doc-path restriction on prev/next.
+- Pure additive — underlying tools unchanged.
+- Registered as 48th MCP tool. Schema requires `repo` + `section_id`.
+- 8 tests in `tests/test_v1_54_0.py` covering full bundle, leaf semantics, middle-node neighbors, handle shapes for path/neighbors, error paths, schema parity.
+- `tests/test_server.py` tool count 47 → 48.
+
+**Replay gate:** all 7 fixtures pass at 1.0 nDCG/MRR/Recall vs v1.53.0.
+**Tests:** 1068 → 1076 (+8).
 
 ### v1.53.0 — byte-length range filter on search_sections — ✅ SHIPPED (2026-04-26)
 **Goal:** Drop stub sections (one-line definitions) and oversized dumps. New `min_byte_length` / `max_byte_length` args on `search_sections` filter by computed `byte_end - byte_start`. Pure additive.

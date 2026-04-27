@@ -22,6 +22,7 @@ from .tools.get_section import get_section
 from .tools.get_sections import get_sections
 from .tools.get_section_context import get_section_context
 from .tools.section_neighbors import section_neighbors
+from .tools.describe_section import describe_section
 from .tools.get_section_summary import get_section_summary
 from .tools.get_section_summaries import get_section_summaries
 from .tools.get_orphan_sections import get_orphan_sections
@@ -420,6 +421,24 @@ async def list_tools() -> list[Tool]:
                         "type": "boolean",
                         "description": "v1.24+ — strip repeated cross-section fragments before returning the target section content.",
                         "default": False
+                    }
+                },
+                "required": ["repo", "section_id"]
+            }
+        ),
+        Tool(
+            name="describe_section",
+            description="v1.54+ — consolidated handle bundle: full metadata + ancestor breadcrumb + prev/next/parent/first_child neighbors for one section in a single call. Saves three round-trips vs calling get_section_summary + get_section_path + section_neighbors separately. No content reads.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "Repository identifier"
+                    },
+                    "section_id": {
+                        "type": "string",
+                        "description": "Target section ID"
                     }
                 },
                 "required": ["repo", "section_id"]
@@ -1250,6 +1269,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             )
         elif name == "section_neighbors":
             result = section_neighbors(
+                repo=arguments["repo"],
+                section_id=arguments["section_id"],
+                storage_path=storage_path,
+            )
+        elif name == "describe_section":
+            result = describe_section(
                 repo=arguments["repo"],
                 section_id=arguments["section_id"],
                 storage_path=storage_path,
