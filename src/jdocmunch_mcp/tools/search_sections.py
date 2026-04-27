@@ -27,6 +27,8 @@ def search_sections(
     max_level: Optional[int] = None,
     tags: Optional[list] = None,
     exclude_tags: Optional[list] = None,
+    roles: Optional[list] = None,
+    exclude_roles: Optional[list] = None,
     storage_path: Optional[str] = None,
 ) -> dict:
     """Search sections with BM25-style lexical + optional semantic fusion.
@@ -198,6 +200,29 @@ def search_sections(
                 })
             ]
 
+    # v1.52.0: optional roles / exclude_roles filters (ANY-match).
+    # `role` (singular, v1.19) is unchanged — it's a hard exact-match
+    # post-filter applied later. These plural variants run on the
+    # candidate list before that and can stack with each other.
+    if roles:
+        wanted_roles = {r.strip().lower() for r in roles
+                        if isinstance(r, str) and r.strip()}
+        if wanted_roles:
+            results = [
+                r for r in results
+                if ((r.get("metadata") or {}).get("role") or "").strip().lower()
+                in wanted_roles
+            ]
+    if exclude_roles:
+        unwanted_roles = {r.strip().lower() for r in exclude_roles
+                          if isinstance(r, str) and r.strip()}
+        if unwanted_roles:
+            results = [
+                r for r in results
+                if ((r.get("metadata") or {}).get("role") or "").strip().lower()
+                not in unwanted_roles
+            ]
+
     # v1.51.0: optional exclude_tags filter. ANY-match semantics —
     # drop section if it contains any listed tag.
     if exclude_tags:
@@ -319,6 +344,12 @@ def search_sections(
         meta["exclude_tags_filter"] = sorted({
             t.strip().lower() for t in exclude_tags if isinstance(t, str) and t.strip()
         })
+    if roles:
+        meta["roles_filter"] = sorted({r.strip().lower() for r in roles
+                                       if isinstance(r, str) and r.strip()})
+    if exclude_roles:
+        meta["exclude_roles_filter"] = sorted({r.strip().lower() for r in exclude_roles
+                                               if isinstance(r, str) and r.strip()})
     attach_confidence(query, results, meta)
 
     # v1.33.0: per-result answerability + quotability scores. Read content

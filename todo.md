@@ -2,8 +2,21 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.51.0)
-**Status:** v1.10.0–v1.51.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.52.0)
+**Status:** v1.10.0–v1.52.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.52.0 — roles / exclude_roles plural ANY-match filters — ✅ SHIPPED (2026-04-26)
+**Goal:** Complete the role-axis filter parity with v1.45 + v1.51 tags. New `roles: list[str]` (positive ANY-match) and `exclude_roles: list[str]` (negative ANY-match) on `search_sections`. Existing singular `role: str` (exact post-filter) keeps working unchanged.
+
+**Deliverables:**
+- `roles` and `exclude_roles` args threaded through Python signature, schema, dispatch.
+- ANY-match semantics: `roles=["a","b"]` keeps any section whose `metadata.role` is in `{"a","b"}`; `exclude_roles=["c"]` drops any section whose role is `"c"`. Same lowercase + strip normalization as the tag filters.
+- Filters stack: `roles=` (must match include set) AND `exclude_roles=` (must not match exclude set).
+- `_meta.roles_filter` / `_meta.exclude_roles_filter` echo normalized sets when active.
+- 7 tests in `tests/test_v1_52_0.py` covering ANY-match include, ANY-match exclude, stacking, singular `role=` preserved, case insensitivity, empty list, schema parity.
+
+**Replay gate:** all 7 fixtures pass at 1.0 nDCG/MRR/Recall vs v1.51.0.
+**Tests:** 1054 → 1062 (+8).
 
 ### v1.51.0 — exclude_tags filter on search_sections — ✅ SHIPPED (2026-04-26)
 **Goal:** Negative companion to v1.45's `tags` (positive AND-include). New `exclude_tags: list[str]` arg drops sections whose `Section.tags` contains ANY listed tag. Fills the obvious gap: agents can now scope by required tags AND ban irrelevant ones in the same query.

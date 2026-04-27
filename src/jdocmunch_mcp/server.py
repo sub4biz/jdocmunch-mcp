@@ -292,6 +292,16 @@ async def list_tools() -> list[Tool]:
                         "items": {"type": "string"},
                         "description": "v1.51+ — drop sections whose Section.tags contains ANY listed tag (negative ANY-match). Stacks with `tags`. Case-insensitive."
                     },
+                    "roles": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "v1.52+ — restrict to sections whose metadata.role matches ANY listed role (positive OR-match). Differs from singular `role` (which is exact). Case-insensitive."
+                    },
+                    "exclude_roles": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "v1.52+ — drop sections whose metadata.role matches ANY listed role. Case-insensitive. Stacks with `roles` (the result must match an included role and not match any excluded role)."
+                    },
                     "repo_group": {
                         "type": "string",
                         "description": "v1.26+ — fan out across the named repo group (defined via define_repo_group). When set, the per-repo `repo` arg is ignored; results from each member repo are fused via RRF."
@@ -1194,6 +1204,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 max_level=arguments.get("max_level"),
                 tags=arguments.get("tags"),
                 exclude_tags=arguments.get("exclude_tags"),
+                roles=arguments.get("roles"),
+                exclude_roles=arguments.get("exclude_roles"),
                 storage_path=storage_path,
             )
         elif name == "get_section":
