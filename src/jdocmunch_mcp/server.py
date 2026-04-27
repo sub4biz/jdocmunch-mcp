@@ -14,6 +14,7 @@ from mcp.types import Tool, TextContent, Resource
 from .tools.index_local import index_local
 from .tools.index_repo import index_repo
 from .tools.list_repos import list_repos
+from .tools.list_docs import list_docs
 from .tools.get_toc import get_toc
 from .tools.get_toc_tree import get_toc_tree
 from .tools.get_document_outline import get_document_outline
@@ -154,6 +155,20 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {}
+            }
+        ),
+        Tool(
+            name="list_docs",
+            description="v1.55+ — flat per-doc inventory of an indexed repo: doc_path, section_count, format, byte_size for each indexed document. Lighter than get_toc_tree (which returns full section trees per doc). Sorted by doc_path.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "Repository identifier"
+                    }
+                },
+                "required": ["repo"]
             }
         ),
         Tool(
@@ -1195,6 +1210,11 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             )
         elif name in ("doc_list_repos", "list_repos"):  # list_repos kept for backward compat
             result = list_repos(storage_path=storage_path)
+        elif name == "list_docs":
+            result = list_docs(
+                repo=arguments["repo"],
+                storage_path=storage_path,
+            )
         elif name == "get_toc":
             result = get_toc(
                 repo=arguments["repo"],

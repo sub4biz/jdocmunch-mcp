@@ -2,8 +2,22 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.54.0)
-**Status:** v1.10.0–v1.54.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.55.0)
+**Status:** v1.10.0–v1.55.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.55.0 — list_docs flat per-doc inventory — ✅ SHIPPED (2026-04-26)
+**Goal:** Doc-level navigation primitive. New `list_docs(repo)` returns every indexed document with `{doc_path, section_count, format, byte_size}`. Lighter than `get_toc_tree` (full section trees per doc) and complements `list_repos` (which enumerates repos).
+
+**Deliverables:**
+- New `tools/list_docs.py`. Iterates index sections once for counts, stats cached files for byte_size. Sorted by `doc_path` ascending.
+- `byte_size=0` signals a missing cache file (stale index).
+- Aggregate fields: `total_section_count`, `total_byte_size`.
+- Registered as 49th MCP tool. Schema requires `repo`.
+- 9 tests in `tests/test_v1_55_0.py` covering doc enumeration, section counts, format extraction, byte_size, sort order, total aggregation, error paths, schema parity.
+- `tests/test_server.py` tool count 48 → 49.
+
+**Replay gate:** all 7 fixtures pass at 1.0 nDCG/MRR/Recall vs v1.54.0.
+**Tests:** 1076 → 1085 (+9).
 
 ### v1.54.0 — describe_section consolidated handle bundle — ✅ SHIPPED (2026-04-26)
 **Goal:** Round-trip elimination. New `describe_section(repo, section_id)` returns the union of `get_section_summary` + `get_section_path` + `section_neighbors` in one call against a single `load_index()`. Saves three round-trips for the common "tell me everything about this section without content" pattern.
