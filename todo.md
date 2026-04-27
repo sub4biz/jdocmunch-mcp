@@ -2,8 +2,22 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.47.0)
-**Status:** v1.10.0–v1.47.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.48.0)
+**Status:** v1.10.0–v1.48.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.48.0 — get_section_summaries batch metadata — ✅ SHIPPED (2026-04-26)
+**Goal:** Batch counterpart to v1.38's `get_section_summary`. Resolve indexed metadata for many section_ids in one call against a single `load_index()` — saves N round-trips when an agent has multiple search hits.
+
+**Deliverables:**
+- New `tools/get_section_summaries.py`. Order preserved; per-id errors reported in-line on the corresponding result entry rather than aborting the batch (partial failure preferred over total failure on bulk lookups).
+- Each entry carries `requested_id` for correlation, plus either `section` (full metadata view including derived `byte_length`) or `error`.
+- `found_count` / `missing_count` summary fields for quick aggregation.
+- Registered as 45th MCP tool. Schema requires `repo` + `section_ids: array<string>`.
+- 8 tests in `tests/test_v1_48_0.py` covering empty list, all-found, partial-missing, non-string ids, error paths, schema parity.
+- `tests/test_server.py` tool count 44 → 45.
+
+**Replay gate:** all 7 fixtures pass at 1.0 nDCG/MRR/Recall vs v1.47.0.
+**Tests:** 1021 → 1029 (+8).
 
 ### v1.47.0 — get_recent_changes drift surface — ✅ SHIPPED (2026-04-26)
 **Goal:** Surface sections currently in `edited_uncommitted` or `stale_index` buckets via the v1.16 FreshnessProbe. Pre-flight check before deciding whether to re-index — `get_doc_health` exposes counts; this returns the actual section list.

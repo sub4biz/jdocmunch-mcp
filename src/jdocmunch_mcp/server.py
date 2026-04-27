@@ -23,6 +23,7 @@ from .tools.get_sections import get_sections
 from .tools.get_section_context import get_section_context
 from .tools.section_neighbors import section_neighbors
 from .tools.get_section_summary import get_section_summary
+from .tools.get_section_summaries import get_section_summaries
 from .tools.get_orphan_sections import get_orphan_sections
 from .tools.get_section_path import get_section_path
 from .tools.get_section_excerpt import get_section_excerpt
@@ -558,6 +559,25 @@ async def list_tools() -> list[Tool]:
                     }
                 },
                 "required": ["repo", "section_id"]
+            }
+        ),
+        Tool(
+            name="get_section_summaries",
+            description="v1.48+ — batch version of get_section_summary. Resolve metadata for many ids in one call against a single index load. Per-id errors are reported in-line on the corresponding result entry rather than aborting the batch.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "Repository identifier"
+                    },
+                    "section_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of section IDs to look up. Order preserved in response; each entry carries `requested_id` for correlation."
+                    }
+                },
+                "required": ["repo", "section_ids"]
             }
         ),
         Tool(
@@ -1162,6 +1182,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             result = get_section_summary(
                 repo=arguments["repo"],
                 section_id=arguments["section_id"],
+                storage_path=storage_path,
+            )
+        elif name == "get_section_summaries":
+            result = get_section_summaries(
+                repo=arguments["repo"],
+                section_ids=arguments["section_ids"],
                 storage_path=storage_path,
             )
         elif name == "get_orphan_sections":
