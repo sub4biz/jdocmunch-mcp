@@ -2,8 +2,23 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.57.0)
-**Status:** v1.10.0–v1.57.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.58.0)
+**Status:** v1.10.0–v1.58.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.58.0 — get_doc per-doc detail view — ✅ SHIPPED (2026-04-26)
+**Goal:** Single-doc detail view that pairs with v1.55's `list_docs` (cross-doc inventory). Returns sections list (handles), role/tag distributions per doc, byte_size, format, indexed_at — the "tell me everything about this one doc" answer in a single call.
+
+**Deliverables:**
+- New `tools/get_doc.py`. Filters `index.sections` to one doc_path, sorts by `byte_start`, computes per-doc tag/role distributions.
+- Section handle shape: `{id, title, level, byte_start, byte_end}` — no content.
+- Distributions sorted count desc then name asc (same convention as v1.46/v1.50).
+- Returns explicit error when doc_path is missing or doesn't appear in the index.
+- Registered as 52nd MCP tool. Schema requires `repo` + `doc_path`.
+- 10 tests in `tests/test_v1_58_0.py` covering ordering, doc-isolation, distributions, byte_size, format, handle shape, error paths, schema parity.
+- `tests/test_server.py` tool count 51 → 52.
+
+**Replay gate:** all 7 fixtures pass at 1.0 nDCG/MRR/Recall vs v1.57.0.
+**Tests:** 1106 → 1117 (+11).
 
 ### v1.57.0 — search_titles fast title-only navigation — ✅ SHIPPED (2026-04-26)
 **Goal:** Different from `search_sections` (full hybrid retrieval). Title-only token-overlap match for the navigation case: agent has a heading text from a URL fragment / screenshot / prior result and just wants the section_id. Pure-Python scorer, no embeddings, no posting-list traversal.

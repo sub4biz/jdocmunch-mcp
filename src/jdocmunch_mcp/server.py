@@ -15,6 +15,7 @@ from .tools.index_local import index_local
 from .tools.index_repo import index_repo
 from .tools.list_repos import list_repos
 from .tools.list_docs import list_docs
+from .tools.get_doc import get_doc
 from .tools.get_index_overview import get_index_overview
 from .tools.get_toc import get_toc
 from .tools.get_toc_tree import get_toc_tree
@@ -177,6 +178,18 @@ async def list_tools() -> list[Tool]:
                     }
                 },
                 "required": ["repo"]
+            }
+        ),
+        Tool(
+            name="get_doc",
+            description="v1.58+ — single-doc detail view. Pairs with list_docs (cross-doc inventory). Returns section list (handles), role_distribution, tag_distribution, byte_size, format, indexed_at for one doc. No content reads.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string", "description": "Repository identifier"},
+                    "doc_path": {"type": "string", "description": "Document path within the repo, e.g. 'api/auth.md'"}
+                },
+                "required": ["repo", "doc_path"]
             }
         ),
         Tool(
@@ -1258,6 +1271,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         elif name == "list_docs":
             result = list_docs(
                 repo=arguments["repo"],
+                storage_path=storage_path,
+            )
+        elif name == "get_doc":
+            result = get_doc(
+                repo=arguments["repo"],
+                doc_path=arguments["doc_path"],
                 storage_path=storage_path,
             )
         elif name == "get_index_overview":
