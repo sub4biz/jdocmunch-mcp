@@ -2,8 +2,21 @@
 
 **Owner:** jgravelle
 **Drafted:** 2026-04-26
-**Last updated:** 2026-04-26 (post-v1.50.0 milestone)
-**Status:** v1.10.0–v1.50.0 shipped (+ hotfixes v1.36.1/2/3) — **41-release milestone hit**. 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+**Last updated:** 2026-04-26 (post-v1.51.0)
+**Status:** v1.10.0–v1.51.0 shipped (+ hotfixes v1.36.1/2/3). 1.x continues; 2.x deferred indefinitely (license boundary — see § "Reserved for 2.x").
+
+### v1.51.0 — exclude_tags filter on search_sections — ✅ SHIPPED (2026-04-26)
+**Goal:** Negative companion to v1.45's `tags` (positive AND-include). New `exclude_tags: list[str]` arg drops sections whose `Section.tags` contains ANY listed tag. Fills the obvious gap: agents can now scope by required tags AND ban irrelevant ones in the same query.
+
+**Deliverables:**
+- `exclude_tags: Optional[list]` arg threaded through Python signature, schema, dispatch.
+- ANY-match semantics — drop if section has any one of the listed tags. Same lowercase + strip normalization as v1.45.
+- Stacks with the existing `tags=` (must-have-all) filter.
+- `_meta.exclude_tags_filter` echoes the normalized set when active.
+- 7 tests in `tests/test_v1_51_0.py` covering single-exclude, two-tag any-match, stacking with includes, unknown-tag noop, case insensitivity, empty list, default-off, schema parity.
+
+**Replay gate:** all 7 fixtures pass at 1.0 nDCG/MRR/Recall vs v1.50.0.
+**Tests:** 1046 → 1054 (+8).
 
 ### v1.50.0 — get_all_roles role discovery — ✅ SHIPPED (2026-04-26) 🎉 milestone
 **Goal:** Finish the discovery symmetry begun by v1.46's `get_all_tags`. New `get_all_roles(repo)` returns every distinct role classification with section counts and id samples. Mirrors the tag-axis pattern for the role axis. Sections without `metadata.role` bucket under `"unknown"` rather than vanishing.

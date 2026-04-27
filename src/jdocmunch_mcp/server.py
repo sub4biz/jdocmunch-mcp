@@ -287,6 +287,11 @@ async def list_tools() -> list[Tool]:
                         "items": {"type": "string"},
                         "description": "v1.45+ — restrict to sections whose Section.tags contains every listed tag (AND semantics). Case-insensitive."
                     },
+                    "exclude_tags": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "v1.51+ — drop sections whose Section.tags contains ANY listed tag (negative ANY-match). Stacks with `tags`. Case-insensitive."
+                    },
                     "repo_group": {
                         "type": "string",
                         "description": "v1.26+ — fan out across the named repo group (defined via define_repo_group). When set, the per-repo `repo` arg is ignored; results from each member repo are fused via RRF."
@@ -1188,6 +1193,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 min_level=arguments.get("min_level"),
                 max_level=arguments.get("max_level"),
                 tags=arguments.get("tags"),
+                exclude_tags=arguments.get("exclude_tags"),
                 storage_path=storage_path,
             )
         elif name == "get_section":

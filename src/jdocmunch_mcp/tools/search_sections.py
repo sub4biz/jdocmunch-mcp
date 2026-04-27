@@ -26,6 +26,7 @@ def search_sections(
     min_level: Optional[int] = None,
     max_level: Optional[int] = None,
     tags: Optional[list] = None,
+    exclude_tags: Optional[list] = None,
     storage_path: Optional[str] = None,
 ) -> dict:
     """Search sections with BM25-style lexical + optional semantic fusion.
@@ -197,6 +198,19 @@ def search_sections(
                 })
             ]
 
+    # v1.51.0: optional exclude_tags filter. ANY-match semantics —
+    # drop section if it contains any listed tag.
+    if exclude_tags:
+        unwanted = {t.strip().lower() for t in exclude_tags
+                    if isinstance(t, str) and t.strip()}
+        if unwanted:
+            results = [
+                r for r in results
+                if not unwanted & {
+                    str(t).strip().lower() for t in (r.get("tags") or [])
+                }
+            ]
+
     # v1.44.0: optional heading-level range filter. Restricts results
     # to sections whose `level` falls within [min_level, max_level].
     # min/max are inclusive; either may be omitted independently.
@@ -301,6 +315,10 @@ def search_sections(
         meta["max_level"] = int(max_level)
     if tags:
         meta["tags_filter"] = sorted({t.strip().lower() for t in tags if isinstance(t, str) and t.strip()})
+    if exclude_tags:
+        meta["exclude_tags_filter"] = sorted({
+            t.strip().lower() for t in exclude_tags if isinstance(t, str) and t.strip()
+        })
     attach_confidence(query, results, meta)
 
     # v1.33.0: per-result answerability + quotability scores. Read content
