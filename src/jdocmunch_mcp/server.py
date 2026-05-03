@@ -22,6 +22,7 @@ from .tools.get_toc_tree import get_toc_tree
 from .tools.get_document_outline import get_document_outline
 from .tools.search_sections import search_sections
 from .tools.search_titles import search_titles
+from .tools.count_sections import count_sections
 from .tools.get_section import get_section
 from .tools.get_sections import get_sections
 from .tools.get_section_context import get_section_context
@@ -369,6 +370,28 @@ async def list_tools() -> list[Tool]:
                     }
                 },
                 "required": ["query"]
+            }
+        ),
+        Tool(
+            name="count_sections",
+            description="v1.59+ — count sections matching the same filter set as search_sections (path_glob, role/roles/exclude_roles, tags/exclude_tags, min/max_level, min/max_byte_length) but skip ranking. Use for UI counters or 'does anything match?' probes.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string"},
+                    "doc_path": {"type": "string"},
+                    "path_glob": {"type": "string"},
+                    "role": {"type": "string"},
+                    "roles": {"type": "array", "items": {"type": "string"}},
+                    "exclude_roles": {"type": "array", "items": {"type": "string"}},
+                    "tags": {"type": "array", "items": {"type": "string"}},
+                    "exclude_tags": {"type": "array", "items": {"type": "string"}},
+                    "min_level": {"type": "integer", "minimum": 0},
+                    "max_level": {"type": "integer", "minimum": 0},
+                    "min_byte_length": {"type": "integer", "minimum": 0},
+                    "max_byte_length": {"type": "integer", "minimum": 0}
+                },
+                "required": ["repo"]
             }
         ),
         Tool(
@@ -1334,6 +1357,22 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 repo=arguments["repo"],
                 query=arguments["query"],
                 max_results=arguments.get("max_results", 10),
+                storage_path=storage_path,
+            )
+        elif name == "count_sections":
+            result = count_sections(
+                repo=arguments["repo"],
+                doc_path=arguments.get("doc_path"),
+                path_glob=arguments.get("path_glob"),
+                role=arguments.get("role"),
+                roles=arguments.get("roles"),
+                exclude_roles=arguments.get("exclude_roles"),
+                tags=arguments.get("tags"),
+                exclude_tags=arguments.get("exclude_tags"),
+                min_level=arguments.get("min_level"),
+                max_level=arguments.get("max_level"),
+                min_byte_length=arguments.get("min_byte_length"),
+                max_byte_length=arguments.get("max_byte_length"),
                 storage_path=storage_path,
             )
         elif name == "get_section":
