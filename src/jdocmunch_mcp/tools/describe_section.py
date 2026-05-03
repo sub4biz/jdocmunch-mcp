@@ -60,8 +60,8 @@ def describe_section(
     if not target:
         return {"error": f"Section not found: {section_id}"}
 
-    # ---- section view (minus content, plus derived byte_length) ----
-    section_view = {k: v for k, v in target.items() if k != "content"}
+    # ---- section view (minus content + raw embedding, plus derived byte_length) ----
+    section_view = {k: v for k, v in target.items() if k not in ("content", "embedding")}
     bs = int(target.get("byte_start", 0) or 0)
     be = int(target.get("byte_end", 0) or 0)
     section_view["byte_length"] = max(0, be - bs)

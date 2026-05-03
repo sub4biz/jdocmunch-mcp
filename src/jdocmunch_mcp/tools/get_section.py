@@ -62,7 +62,9 @@ def get_section(
         from ..retrieval.code_compress import compress_fenced_code as _compress
         content, code_compressed_bytes = _compress(content)
 
-    result_sec = {k: v for k, v in sec.items() if k != "content"}
+    # Strip the raw embedding vector — it's an internal index artifact, not
+    # API-consumer payload, and a 384-dim float list is ~2,000 tokens (issue #11).
+    result_sec = {k: v for k, v in sec.items() if k not in ("content", "embedding")}
     result_sec["content"] = content
 
     if verify:

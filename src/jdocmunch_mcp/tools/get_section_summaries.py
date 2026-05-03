@@ -61,7 +61,7 @@ def get_section_summaries(
             out.append({"requested_id": sid, "error": f"Section not found: {sid}"})
             missing += 1
             continue
-        view = {k: v for k, v in sec.items() if k != "content"}
+        view = {k: v for k, v in sec.items() if k not in ("content", "embedding")}
         byte_start = int(sec.get("byte_start", 0) or 0)
         byte_end = int(sec.get("byte_end", 0) or 0)
         view["byte_length"] = max(0, byte_end - byte_start)

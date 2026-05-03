@@ -45,8 +45,8 @@ def get_section_summary(
     if not sec:
         return {"error": f"Section not found: {section_id}"}
 
-    # Strip content but keep everything else.
-    summary_view = {k: v for k, v in sec.items() if k != "content"}
+    # Strip content + raw embedding (issue #11). Everything else passes through.
+    summary_view = {k: v for k, v in sec.items() if k not in ("content", "embedding")}
 
     byte_start = int(sec.get("byte_start", 0) or 0)
     byte_end = int(sec.get("byte_end", 0) or 0)

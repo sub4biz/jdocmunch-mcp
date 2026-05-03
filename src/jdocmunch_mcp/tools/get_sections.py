@@ -68,7 +68,9 @@ def get_sections(
             content, saved = _compress(content)
             total_code_compressed += saved
 
-        result_sec = {k: v for k, v in sec.items() if k != "content"}
+        # Strip the raw embedding vector — internal index artifact, not API
+        # payload (issue #11). Matches get_section_context behavior.
+        result_sec = {k: v for k, v in sec.items() if k not in ("content", "embedding")}
         result_sec["content"] = content
 
         if verify:
