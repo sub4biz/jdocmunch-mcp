@@ -70,6 +70,16 @@ _SETEXT_H2_RE = re.compile(r"^-+\s*$")
 _FENCE_OPEN_RE = re.compile(r"^(`{3,}|~{3,})\s*[\w.+-]*\s*$")
 
 
+def _frontmatter_end_line(lines: list) -> int | None:
+    """Return the closing line index for top-of-file YAML frontmatter."""
+    if not lines or lines[0].strip() != "---":
+        return None
+    for i, line in enumerate(lines[1:], start=1):
+        if line.strip() == "---":
+            return i
+    return None
+
+
 def parse_markdown(content: str, doc_path: str, repo: str) -> list:
     """Parse a markdown file into a list of Section objects.
 
@@ -155,10 +165,20 @@ def parse_markdown(content: str, doc_path: str, repo: str) -> list:
     fence_lang: str = ""
     fence_body_byte_start: int = 0
     fence_body_lines: list = []
+    frontmatter_end_line = _frontmatter_end_line(lines)
 
     for i, line in enumerate(lines):
         line_bytes = len(line.encode("utf-8"))
         line_stripped = line.rstrip("\n").rstrip("\r")
+
+        if frontmatter_end_line is not None and i <= frontmatter_end_line:
+            current_lines.append(line)
+            byte_cursor += line_bytes
+            # YAML metadata is not Markdown body text, so it must not seed
+            # Setext heading detection for the closing delimiter.
+            prev_line = ""
+            prev_byte_start = byte_cursor
+            continue
 
         # --- Fence state machine (B2 + v1.17.0 capture) ---
         if in_fence:
