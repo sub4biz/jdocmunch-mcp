@@ -64,6 +64,7 @@ from .tools.get_undocumented_symbols import get_undocumented_symbols
 from .tools.tune_weights import tune_weights
 from .tools.repo_group_tools import list_repo_groups, define_repo_group
 from .tools.verify_index import verify_index
+from .tools.check_section_delete_safe import check_section_delete_safe
 
 
 server = Server("jdocmunch-mcp")
@@ -1236,6 +1237,38 @@ async def list_tools() -> list[Tool]:
                 }
             }
         ),
+        Tool(
+            name="check_section_delete_safe",
+            description=(
+                "Composite preflight: is this section safe to delete? Fuses tutorial-path "
+                "membership, anchor-specific backlinks, transitive doc-level backlinks, and "
+                "recent-edit recency into a single verdict (safe_to_delete, "
+                "tutorial_path_blocking, anchor_referenced, backlinks_blocking, "
+                "recently_edited_blocking) plus up to 5 ranked blockers and a one-line "
+                "recommended_action. Read-only — never mutates the index."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string"},
+                    "section_id": {
+                        "type": "string",
+                        "description": "Stable section ID, format owner/repo::doc_path::slug#level"
+                    },
+                    "transitive_depth": {
+                        "type": "integer",
+                        "default": 3,
+                        "description": "Backlink BFS depth. Default 3."
+                    },
+                    "recent_edit_days": {
+                        "type": "integer",
+                        "default": 14,
+                        "description": "Days within which a recent edit becomes a soft blocker. Default 14."
+                    }
+                },
+                "required": ["repo", "section_id"]
+            }
+        ),
     ]
 
 
@@ -1635,6 +1668,14 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             result = verify_index(
                 repo=arguments["repo"],
                 sample=arguments.get("sample"),
+                storage_path=storage_path,
+            )
+        elif name == "check_section_delete_safe":
+            result = check_section_delete_safe(
+                repo=arguments["repo"],
+                section_id=arguments["section_id"],
+                transitive_depth=arguments.get("transitive_depth", 3),
+                recent_edit_days=arguments.get("recent_edit_days", 14),
                 storage_path=storage_path,
             )
         else:

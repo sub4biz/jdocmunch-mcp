@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.60.0] — 2026-05-11
+
+### New: `check_section_delete_safe` — composite deletion preflight
+
+First Phase-1 deliverable from the sibling-parity PRD. Answers the
+question every wiki maintainer asks every week: *can I safely remove
+this section?*
+
+Fuses four channels into a single verdict plus up to five ranked
+blockers and a one-line `recommended_action`:
+
+1. **Tutorial-path membership** — section is part of a Next/Prev chain,
+   Sphinx toctree, VuePress sidebar, or ordered-filename sequence. High
+   severity — deleting breaks readers walking the chain.
+2. **Anchor-specific backlinks** — other sections link to `doc#slug`.
+   High severity — those anchored links 404 once the section is gone.
+3. **Transitive doc-level backlinks** — BFS over inbound refs to
+   `transitive_depth` (default 3). Medium severity above a threshold of
+   3 referers.
+4. **Recent-edit recency** — section's source touched within
+   `recent_edit_days` (default 14), or sits in FreshnessProbe's
+   `edited_uncommitted` bucket. Low severity — defer deletion.
+
+Verdict tiers (highest first): `tutorial_path_blocking`,
+`anchor_referenced`, `backlinks_blocking`, `recently_edited_blocking`,
+`safe_to_delete`.
+
+Read-only. Composes existing primitives (`get_tutorial_path`,
+`get_backlinks`, `FreshnessProbe`) — no new persisted state, no
+INDEX_VERSION bump.
+
+Inspired by `check_delete_safe` in jcodemunch-mcp (see
+`C:/MCPs/PRD_sibling_parity_v1.md` §6.1).
+
 ## [1.9.0] — 2026-04-19
 
 ### New: Hybrid BM25 + semantic search
