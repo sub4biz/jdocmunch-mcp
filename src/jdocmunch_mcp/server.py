@@ -65,6 +65,7 @@ from .tools.tune_weights import tune_weights
 from .tools.repo_group_tools import list_repo_groups, define_repo_group
 from .tools.verify_index import verify_index
 from .tools.check_section_delete_safe import check_section_delete_safe
+from .tools.get_section_blast_radius import get_section_blast_radius
 
 
 server = Server("jdocmunch-mcp")
@@ -1238,6 +1239,32 @@ async def list_tools() -> list[Tool]:
             }
         ),
         Tool(
+            name="get_section_blast_radius",
+            description=(
+                "Transitive impact of rewriting / restructuring a section. Walks the "
+                "inbound reference graph to max_depth (default 3), classifies each "
+                "hit as anchor / doc / tutorial, and returns direct_impact, "
+                "transitive_impact, a summary, and a normalised blast_score in [0, 1]. "
+                "Companion to get_backlinks (which is depth 1 only). Read-only."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string"},
+                    "section_id": {
+                        "type": "string",
+                        "description": "Stable section ID, format owner/repo::doc_path::slug#level"
+                    },
+                    "max_depth": {
+                        "type": "integer",
+                        "default": 3,
+                        "description": "BFS depth over the inbound reference graph. Default 3."
+                    }
+                },
+                "required": ["repo", "section_id"]
+            }
+        ),
+        Tool(
             name="check_section_delete_safe",
             description=(
                 "Composite preflight: is this section safe to delete? Fuses tutorial-path "
@@ -1668,6 +1695,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             result = verify_index(
                 repo=arguments["repo"],
                 sample=arguments.get("sample"),
+                storage_path=storage_path,
+            )
+        elif name == "get_section_blast_radius":
+            result = get_section_blast_radius(
+                repo=arguments["repo"],
+                section_id=arguments["section_id"],
+                max_depth=arguments.get("max_depth", 3),
                 storage_path=storage_path,
             )
         elif name == "check_section_delete_safe":

@@ -2,6 +2,21 @@
 
 ## [1.60.0] — 2026-05-11
 
+### New: `get_section_blast_radius` — transitive impact of a section change
+
+Companion to `get_backlinks` (which is depth 1 only). Walks the inbound
+reference graph to `max_depth` (default 3) and classifies each hit as
+`anchor` (link targets this section's slug), `doc` (link targets the
+enclosing doc), or `tutorial` (section appears in a Next/Prev / toctree
+chain).
+
+Returns `direct_impact` (depth 1), `transitive_impact` (depth ≥ 2), a
+`summary` of counts, and a normalised `blast_score` in [0, 1] so blast
+radius is comparable across sections of different size.
+
+Read-only. Inspired by `get_blast_radius` in jcodemunch-mcp (see
+`C:/MCPs/PRD_sibling_parity_v1.md` §6.3).
+
 ### New: `check_section_delete_safe` — composite deletion preflight
 
 First Phase-1 deliverable from the sibling-parity PRD. Answers the

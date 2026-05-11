@@ -1,6 +1,6 @@
 # jdocmunch-mcp
 
-**Version:** 1.60.0 | **Tests:** `pytest tests/ -q` (1153 total)
+**Version:** 1.60.0 | **Tests:** `pytest tests/ -q` (1163 total)
 
 ## Purpose
 Documentation section indexing for the jMunch suite. Companion to jcodemunch-mcp (which owns code symbols). Do NOT add code/docstring parsing here.
@@ -11,7 +11,7 @@ Documentation section indexing for the jMunch suite. Companion to jcodemunch-mcp
 ## Key Modules
 - `storage/doc_store.py` — DocIndex, DocStore, detect_changes, incremental_save
 - `parser/` — one file per format (markdown, rst, asciidoc, notebook, html, text, openapi, json, xml)
-- `tools/` — index_local, index_repo, index_file, get_toc, get_toc_tree, search_sections, get_section, get_sections, list_repos, delete_index, get_broken_links, get_doc_coverage, get_backlinks, get_stale_pages, get_wiki_stats, check_section_delete_safe
+- `tools/` — index_local, index_repo, index_file, get_toc, get_toc_tree, search_sections, get_section, get_sections, list_repos, delete_index, get_broken_links, get_doc_coverage, get_backlinks, get_stale_pages, get_wiki_stats, check_section_delete_safe, get_section_blast_radius
 - `cli/hooks.py` — PreToolUse (Read interceptor) + PostToolUse (auto-reindex) + PreCompact (session snapshot) hook handlers for Claude Code
 - `cli/init.py` — `jdocmunch-mcp init` full onboarding: client detection, config patching, CLAUDE.md policy, Cursor/Windsurf rules, hooks, index; `claude-md` subcommand
 - `embeddings/` — provider.py (Gemini + OpenAI), cosine_similarity, embed_sections, embed_query
