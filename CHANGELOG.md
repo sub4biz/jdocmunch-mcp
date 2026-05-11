@@ -2,6 +2,33 @@
 
 ## [1.60.0] — 2026-05-11
 
+### New: `find_similar_sections` — multi-signal dedup detection
+
+Every wiki of size accumulates "three pages that all say the same
+thing." This tool surfaces them. Multi-signal scoring fuses embedding
+cosine (when the index has embeddings) with title + body lexical
+Jaccard, gated by a cheap title-token pre-filter to keep cost bounded
+on large wikis.
+
+Output is cluster-shaped: one entry per group of overlapping sections,
+each with a `canonical` (recommended keeper, ranked by backlink_count +
+byte_length) and `variants` to fold in. Verdict tiers per cluster:
+
+- `near_duplicate` — combined score ≥ `near_duplicate_threshold` (0.92)
+- `overlapping_topic` — combined score ∈ `[min_score, threshold)`
+- `parallel_tutorial` — cluster members live in different doc
+  directories (suggests parallel guides that should cross-reference
+  rather than be merged)
+
+Defaults: `min_score=0.7`, `max_clusters=50`, `max_sections=1000`.
+Parser-artifact filter drops zero-byte-range wrapper sections so they
+don't cluster with their own heading-level twins.
+
+Read-only. Inspired by `find_similar_symbols` in jcodemunch-mcp (see
+`C:/MCPs/PRD_sibling_parity_v1.md` §6.2). **Completes the jDoc Phase-1
+batch from the sibling-parity PRD** (joins `check_section_delete_safe`
++ `get_section_blast_radius`).
+
 ### New: `get_section_blast_radius` — transitive impact of a section change
 
 Companion to `get_backlinks` (which is depth 1 only). Walks the inbound

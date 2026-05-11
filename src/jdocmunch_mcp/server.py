@@ -66,6 +66,7 @@ from .tools.repo_group_tools import list_repo_groups, define_repo_group
 from .tools.verify_index import verify_index
 from .tools.check_section_delete_safe import check_section_delete_safe
 from .tools.get_section_blast_radius import get_section_blast_radius
+from .tools.find_similar_sections import find_similar_sections
 
 
 server = Server("jdocmunch-mcp")
@@ -1239,6 +1240,44 @@ async def list_tools() -> list[Tool]:
             }
         ),
         Tool(
+            name="find_similar_sections",
+            description=(
+                "Multi-signal section dedup detection. Fuses embedding cosine "
+                "(when available) with title + body lexical Jaccard, clusters via "
+                "union-find, ranks each cluster's canonical by backlink_count + "
+                "size. Verdict tiers: near_duplicate, overlapping_topic, "
+                "parallel_tutorial. Read-only."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string"},
+                    "min_score": {
+                        "type": "number",
+                        "default": 0.7,
+                        "description": "Pairwise score floor for clustering. Default 0.7."
+                    },
+                    "near_duplicate_threshold": {
+                        "type": "number",
+                        "default": 0.92,
+                        "description": "Score at/above which a cluster is flagged near_duplicate."
+                    },
+                    "max_clusters": {"type": "integer", "default": 50},
+                    "exclude_same_doc": {
+                        "type": "boolean",
+                        "default": False,
+                        "description": "Skip pairs in the same doc. Useful for long pages with repeated structure."
+                    },
+                    "max_sections": {
+                        "type": "integer",
+                        "default": 1000,
+                        "description": "Hard cap on sections examined. Default 1000."
+                    }
+                },
+                "required": ["repo"]
+            }
+        ),
+        Tool(
             name="get_section_blast_radius",
             description=(
                 "Transitive impact of rewriting / restructuring a section. Walks the "
@@ -1695,6 +1734,16 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             result = verify_index(
                 repo=arguments["repo"],
                 sample=arguments.get("sample"),
+                storage_path=storage_path,
+            )
+        elif name == "find_similar_sections":
+            result = find_similar_sections(
+                repo=arguments["repo"],
+                min_score=arguments.get("min_score", 0.7),
+                near_duplicate_threshold=arguments.get("near_duplicate_threshold", 0.92),
+                max_clusters=arguments.get("max_clusters", 50),
+                exclude_same_doc=arguments.get("exclude_same_doc", False),
+                max_sections=arguments.get("max_sections", 1000),
                 storage_path=storage_path,
             )
         elif name == "get_section_blast_radius":
