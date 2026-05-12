@@ -1,6 +1,15 @@
 # jdocmunch-mcp
 
-**Version:** 1.63.1 | **Tests:** `pytest tests/ -q` (1199 passed)
+**Version:** 1.63.2 | **Tests:** `pytest tests/ -q` (1199 passed)
+
+## v1.63.2 - drift-proof __version__ via importlib.metadata
+`__version__` is now derived from `importlib.metadata.version("jdocmunch-mcp")`
+in `__init__.py`, mirroring jcodemunch-mcp's pattern. pyproject.toml is
+the single source of truth; the hardcoded literal can no longer drift.
+v1.63.1's `tests/test_version_sync.py` regex guard retired as redundant.
+Source-checkout callers without pip install see `__version__ = "unknown"`;
+the replay runner's `_resolve_version()` already handles this via pyproject
+fallback.
 
 ## v1.63.1 - CI green (fixture query rename + full-history checkout)
 Patch release. Two independent CI fixes, no installed-user behavior change.

@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.63.2] - 2026-05-12 - drift-proof __version__ via importlib.metadata
+
+`src/jdocmunch_mcp/__init__.py` now derives `__version__` from
+`importlib.metadata.version("jdocmunch-mcp")` instead of a hardcoded
+literal. Reads the wheel's metadata at import time, so pyproject.toml
+and the runtime version string can no longer disagree by construction.
+
+Backstory: v1.63.0 shipped with the hardcoded `__version__` stuck at
+1.60.0 (three minors stale) because nothing cross-checked it against
+pyproject. v1.63.1 added a `tests/test_version_sync.py` regex guard,
+but jcodemunch-mcp already had a better pattern. This release ports
+that pattern over and retires the test (no longer reachable code).
+
+When run from a source checkout without pip install, `__version__`
+resolves to `"unknown"`. The replay-runner's `_resolve_version()`
+already falls back to parsing `pyproject.toml` in that case, so
+baseline-result filenames stay correct on source builds.
+
+No tool, schema, or wire-format changes.
+
 ## [1.63.1] - 2026-05-12 - CI green: fixture query rename + full-history checkout
 
 Patch release that turns master green again. Two independent CI fixes,
