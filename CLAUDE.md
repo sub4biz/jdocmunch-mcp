@@ -1,6 +1,16 @@
 # jdocmunch-mcp
 
-**Version:** 1.63.0 | **Tests:** `pytest tests/ -q` (1196 passed)
+**Version:** 1.63.1 | **Tests:** `pytest tests/ -q` (1199 passed)
+
+## v1.63.1 - CI green (fixture query rename + full-history checkout)
+Patch release. Two independent CI fixes, no installed-user behavior change.
+(1) `self_v1_11_0` fixture query renamed `wiki stats` -> `wiki benchmark`:
+the old query collided with `### Stats` subheadings added to CHANGELOG.md
+in v1.62.0/v1.63.0 and demoted the target wiki-benchmark page from
+rank 1 to rank 4 (MRR 1.0 -> 0.925). (2) Both CI workflows now set
+`fetch-depth: 0` so `scripts/generate_changelog.py` can walk every
+`release:` commit; the shallow default broke `test_runs_against_real_repo`
+on any push whose HEAD wasn't a `release:` commit.
 
 ## v1.63.0 — `get_doc_pr_risk_profile` (Phase-2 sibling-parity COMPLETE)
 Composite doc-PR risk: volume + blast_radius + backlink_burden + tutorial_disruption

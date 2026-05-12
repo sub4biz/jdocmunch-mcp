@@ -159,10 +159,10 @@ class TestGate:
         assert report["gate"]["status"] == "first_run"
 
     def test_pass_when_within_gate(self):
-        # Real run against the live baseline. Tolerance is 0.05 to absorb
+        # Real run against the live baseline. Tolerance is 0.06 to absorb
         # cross-platform BM25 line-length variance (CRLF on Windows vs LF
         # on Linux shifts avgdl by ~1 byte/line, which can flip one tied
-        # depth-1 vs depth-3 section in the wiki-stats query).
+        # depth-1 vs depth-3 section in the wiki benchmark query).
         from benchmarks.replay.run_replay import run_fixture
 
         report = run_fixture(

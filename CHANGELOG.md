@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.63.1] - 2026-05-12 - CI green: fixture query rename + full-history checkout
+
+Patch release that turns master green again. Two independent CI fixes,
+no behavior change for installed users.
+
+1. Replay fixture: the `wiki stats` query in `self_v1_11_0.json` collided
+   with the `### Stats` H3 subheadings that v1.62.0 and v1.63.0 hand-added
+   to CHANGELOG.md. BM25 ranked those short, dense sections above the
+   target wiki-benchmark page, dropping MRR from 1.0 to 0.925 (over the
+   0.06 gate). Renamed to `wiki benchmark`. Expected target returns to
+   rank 1 with a clean margin and the slug `jdocmunch-mcp-wiki-benchmark`
+   is the unambiguous lexical anchor for it.
+2. Workflow checkout: both `test.yml` and `replay.yml` now set
+   `fetch-depth: 0` on `actions/checkout@v5`. The shallow default broke
+   `tests/test_v1_35_0.py::TestChangelogGenerator::test_runs_against_real_repo`
+   on any push whose HEAD wasn't itself a `release:` commit, because
+   `scripts/generate_changelog.py` walks `git log` for release subjects
+   and a depth-1 clone had none to match.
+
+No tool, schema, or wire-format changes. v1.63.1 baseline result captured
+at `benchmarks/replay/results/self_v1_11_0-v1.63.1.json` (1.0 / 1.0 / 1.0).
+
 ## [1.63.0] — 2026-05-12 — `get_doc_pr_risk_profile` (Phase-2 sibling-parity COMPLETE)
 
 Composite doc-PR risk profile. Fuses five orthogonal signals over a

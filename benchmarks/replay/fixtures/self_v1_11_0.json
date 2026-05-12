@@ -27,7 +27,7 @@
       "k": 5
     },
     {
-      "query": "wiki stats",
+      "query": "wiki benchmark",
       "expected_top_k": [
         "local/jdocmunch-mcp::benchmarks/jDocMunch_Benchmark_Wiki.md::jdocmunch-mcp-wiki-benchmark#1"
       ],

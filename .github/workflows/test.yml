@@ -16,6 +16,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Full history so scripts/generate_changelog.py can walk every
+          # `release:` commit during test_v1_35_0::test_runs_against_real_repo.
+          # Default depth 1 hid this test whenever HEAD wasn't itself a
+          # `release:` commit.
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
