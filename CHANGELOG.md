@@ -1,5 +1,42 @@
 # Changelog
 
+## [1.62.0] — 2026-05-12 — `doc_health_radar` + `diff_doc_health_radar`
+
+Six-axis health radar for documentation indexes, plus a pure-function
+diff helper. Third leg of the suite-wide radar pattern (jcm's
+`health_radar.py` + jData's `data_health_radar`).
+
+### Axes
+
+Each axis scores 0-100 (higher = healthier):
+
+| Axis                | Source                                              |
+|---------------------|-----------------------------------------------------|
+| `freshness`           | fresh / (fresh + edited + stale) × 100            |
+| `link_integrity`      | linear penalty per broken link (relative to sections) |
+| `orphan_health`       | linear penalty per orphan section                 |
+| `embedding_coverage`  | embedded sections / total sections × 100          |
+| `role_coverage`       | sections with non-unknown role / total × 100      |
+| `drift_health`        | canary clean → 100; alarm → 0; no canary → omitted|
+
+`freshness` is omitted when section_count is zero. `drift_health` is
+omitted when no embedding-drift canary has been captured. Omitted axes
+appear in `omitted_axes` and never silently penalise the composite —
+radars stay comparable across repos with different setup states.
+
+### `diff_doc_health_radar`
+
+Pure function: takes two radar payloads, returns per-axis deltas,
+composite delta, grade change, regression + improvement lists at a
+3-point threshold, and a one-line verdict. No I/O.
+
+### Stats
+
+- Tool count: 58 (+ `doc_health_radar`, `diff_doc_health_radar`)
+- Tests: 1184 passed (+12 new; 12 pre-existing baseline-gate failures unaffected)
+
+---
+
 ## [1.61.0] — 2026-05-12
 
 ### New: explicit-paths indexing

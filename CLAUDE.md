@@ -1,6 +1,12 @@
 # jdocmunch-mcp
 
-**Version:** 1.61.0 | **Tests:** `pytest tests/ -q` (1174 passed)
+**Version:** 1.62.0 | **Tests:** `pytest tests/ -q` (1184 passed)
+
+## v1.62.0 — `doc_health_radar` + `diff_doc_health_radar` (Phase-2 sibling-parity)
+Six-axis 0-100 doc-index health scorecard: freshness, link_integrity, orphan_health,
+embedding_coverage, role_coverage, drift_health (omitted when no canary). Pure-function
+diff helper alongside. Third leg of the suite-wide radar pattern (jcm + jData).
+Tool count 56 → 58.
 
 ## v1.61.0 — explicit-paths indexing
 `index_local(paths=[...])` skips the directory walk and indexes exactly the

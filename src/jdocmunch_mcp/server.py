@@ -84,6 +84,8 @@ from .tools.glossary_tools import lookup_term, list_terms
 from .tools.get_related_sections import get_related_sections
 from .tools.get_section_diff import get_section_diff
 from .tools.get_doc_health import get_doc_health
+from .tools.doc_health_radar import doc_health_radar
+from .tools.health_radar import diff_doc_health_radar
 from .tools.get_tutorial_path import get_tutorial_path
 from .tools.get_undocumented_symbols import get_undocumented_symbols
 from .tools.tune_weights import tune_weights
@@ -1145,6 +1147,40 @@ async def list_tools() -> list[Tool]:
             }
         ),
         Tool(
+            name="doc_health_radar",
+            description=(
+                "Six-axis health radar for a doc repo: freshness, link_integrity, "
+                "orphan_health, embedding_coverage, role_coverage, drift_health "
+                "(omitted when no canary). Each axis is 0-100, plus composite + A-F grade. "
+                "Pairs with diff_doc_health_radar for snapshot deltas. Mirrors jcm's "
+                "and jData's health-radar shape — third leg of the suite-wide pattern."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string"}
+                },
+                "required": ["repo"]
+            }
+        ),
+        Tool(
+            name="diff_doc_health_radar",
+            description=(
+                "Diff two doc_health_radar payloads. Pure function — pass the `radar` "
+                "sub-field from two doc_health_radar responses (e.g. yesterday vs today). "
+                "Returns per-axis deltas, composite delta, grade change, regression and "
+                "improvement lists (threshold: 3 points), one-line verdict."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "baseline": {"type": "object", "description": "Baseline radar payload."},
+                    "current": {"type": "object", "description": "Current radar payload."}
+                },
+                "required": ["baseline", "current"]
+            }
+        ),
+        Tool(
             name="get_tutorial_path",
             description=(
                 "Reconstruct an ordered tutorial chain starting from section_id. Detects "
@@ -1732,6 +1768,16 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             result = get_doc_health(
                 repo=arguments["repo"],
                 storage_path=storage_path,
+            )
+        elif name == "doc_health_radar":
+            result = doc_health_radar(
+                repo=arguments["repo"],
+                storage_path=storage_path,
+            )
+        elif name == "diff_doc_health_radar":
+            result = diff_doc_health_radar(
+                baseline=arguments["baseline"],
+                current=arguments["current"],
             )
         elif name == "get_tutorial_path":
             result = get_tutorial_path(
