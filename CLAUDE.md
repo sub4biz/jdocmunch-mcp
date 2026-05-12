@@ -1,6 +1,15 @@
 # jdocmunch-mcp
 
-**Version:** 1.60.0 | **Tests:** `pytest tests/ -q` (1165 total)
+**Version:** 1.61.0 | **Tests:** `pytest tests/ -q` (1174 passed)
+
+## v1.61.0 — explicit-paths indexing
+`index_local(paths=[...])` skips the directory walk and indexes exactly the
+listed files / subdirs. Each entry is validated against the root the same
+way walked files are (path-traversal, symlink-escape, unsupported-extension
+all warn-and-skip). CLI: `jdocmunch-mcp index-local --path <dir> --paths-from FILE`
+(use `-` for stdin) — composes with `find` / `fd` / `rg`. Additive: omitting
+`paths` preserves every existing call shape. Helper `_load_paths_from_arg`
+in `server.py` parses the file/stdin (strips blanks + `#` comments).
 
 ## Purpose
 Documentation section indexing for the jMunch suite. Companion to jcodemunch-mcp (which owns code symbols). Do NOT add code/docstring parsing here.

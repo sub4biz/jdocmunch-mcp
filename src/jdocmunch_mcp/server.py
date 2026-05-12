@@ -6,7 +6,32 @@ import json
 import os
 import sys
 import traceback
+from pathlib import Path
 from typing import Any, Optional
+
+
+def _load_paths_from_arg(paths_from: str) -> tuple[Optional[list], Optional[str]]:
+    """Read explicit paths from a file or stdin for the `index-local --paths-from` CLI flag.
+
+    Returns ``(paths, None)`` on success or ``(None, error_message)`` on failure.
+    Filters out empty lines and ``# ...`` comments. An empty list is treated as
+    an error so the caller doesn't silently fall through to a full-tree index.
+    """
+    try:
+        if paths_from == "-":
+            raw = sys.stdin.read()
+        else:
+            raw = Path(paths_from).read_text(encoding="utf-8", errors="replace")
+    except OSError as e:
+        return None, f"Cannot read --paths-from {paths_from!r}: {e}"
+    paths_arg = [
+        ln.strip()
+        for ln in raw.splitlines()
+        if ln.strip() and not ln.lstrip().startswith("#")
+    ]
+    if not paths_arg:
+        return None, f"--paths-from {paths_from!r} contained no usable paths"
+    return paths_arg, None
 
 from mcp.server import Server
 from mcp.types import Tool, TextContent, Resource
@@ -123,6 +148,11 @@ async def list_tools() -> list[Tool]:
                         "type": "boolean",
                         "description": "v1.29+ — when true, runs tune_weights against accumulated ranking events at the end of indexing. No-op when telemetry isn't enabled.",
                         "default": False
+                    },
+                    "paths": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Optional list of explicit paths to index. When provided, the directory walk is skipped; only these files (and the contents of any directories in the list) are indexed. Entries may be absolute or relative to `path`. Useful for batch-indexing exactly the files an agent already knows about — e.g. the doc files git just touched."
                     }
                 },
                 "required": ["path"]
@@ -1379,6 +1409,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 incremental=arguments.get("incremental", True),
                 max_files=arguments.get("max_files", 500),
                 autotune=arguments.get("autotune", False),
+                paths=arguments.get("paths"),
             )
         elif name in ("doc_index_repo", "index_repo"):  # index_repo kept for backward compat
             result = await index_repo(
@@ -1897,6 +1928,16 @@ def main(argv: Optional[list] = None):
         "--name",
         help="Optional repo identifier override",
     )
+    il_parser.add_argument(
+        "--paths-from",
+        metavar="FILE",
+        help=(
+            "Read explicit paths to index (one per line) from FILE. Use '-' for "
+            "stdin. When set, the directory walk is skipped — only the listed "
+            "paths are indexed. Entries may be absolute or relative to --path. "
+            "Pipe-friendly with find / fd / fzf / rg."
+        ),
+    )
 
     # --- verify-index (v1.27.0) ---
     vi_parser = subparsers.add_parser(
@@ -1959,7 +2000,15 @@ def main(argv: Optional[list] = None):
 
     if args.command == "index-local":
         from .tools.index_local import index_local
-        result = index_local(path=args.path, name=args.name)
+        paths_from = getattr(args, "paths_from", None)
+        if paths_from:
+            paths_arg, err = _load_paths_from_arg(paths_from)
+            if err is not None:
+                print(json.dumps({"success": False, "error": err}, indent=2))
+                sys.exit(1)
+        else:
+            paths_arg = None
+        result = index_local(path=args.path, name=args.name, paths=paths_arg)
         print(json.dumps(result, indent=2))
         return
 

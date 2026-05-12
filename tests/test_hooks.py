@@ -285,7 +285,7 @@ class TestCLIDispatch:
         mock_result = {"status": "ok", "files_indexed": 0}
         with mock.patch("jdocmunch_mcp.tools.index_local.index_local", return_value=mock_result) as m:
             main(["index-local", "--path", str(tmp_path)])
-            m.assert_called_once_with(path=str(tmp_path), name=None)
+            m.assert_called_once_with(path=str(tmp_path), name=None, paths=None)
 
     def test_init_hooks_dispatch(self):
         from jdocmunch_mcp.server import main

@@ -124,6 +124,93 @@ def discover_doc_files(
     return files[:max_files], warnings
 
 
+def _resolve_explicit_paths(
+    folder_path: Path,
+    paths: list,
+    max_files: int,
+    follow_symlinks: bool,
+) -> tuple:
+    """Resolve a caller-supplied list of paths into the doc-file shape that the
+    downstream pipeline expects. Each entry may be:
+
+      * an absolute path under ``folder_path``, or
+      * a path relative to ``folder_path``,
+      * a directory (recursed via ``discover_doc_files`` against that subtree),
+      * a file (validated and added when its extension is known).
+
+    Returns ``(files, warnings)``. Mirrors ``discover_doc_files`` semantics for
+    security: rejects symlink escapes, path-traversal attempts, and entries
+    outside ``folder_path``. Skips entries with unknown extensions silently
+    (caller gets a `warnings` entry per skip).
+    """
+    files: list = []
+    warnings: list = []
+    seen: set = set()
+
+    for raw in paths:
+        if not isinstance(raw, str) or not raw.strip():
+            warnings.append(f"Skipped empty/non-string path: {raw!r}")
+            continue
+        p = Path(raw).expanduser()
+        if not p.is_absolute():
+            p = (folder_path / p)
+        try:
+            p = p.resolve()
+        except OSError as e:
+            warnings.append(f"Skipped unresolvable path {raw!r}: {e}")
+            continue
+
+        try:
+            p.relative_to(folder_path)
+        except ValueError:
+            warnings.append(f"Skipped path outside folder: {raw!r}")
+            continue
+
+        if not p.exists():
+            warnings.append(f"Skipped non-existent path: {raw!r}")
+            continue
+
+        if p.is_dir():
+            sub_files, sub_warnings = discover_doc_files(
+                p,
+                max_files=max_files - len(files),
+                follow_symlinks=follow_symlinks,
+            )
+            warnings.extend(sub_warnings)
+            for f in sub_files:
+                fr = f.resolve()
+                if fr not in seen:
+                    seen.add(fr)
+                    files.append(f)
+                    if len(files) >= max_files:
+                        break
+        elif p.is_file():
+            if not follow_symlinks and p.is_symlink():
+                warnings.append(f"Skipped symlink (follow_symlinks=False): {raw!r}")
+                continue
+            if p.is_symlink() and is_symlink_escape(folder_path, p):
+                warnings.append(f"Skipped symlink escape: {raw!r}")
+                continue
+            if not validate_path(folder_path, p):
+                warnings.append(f"Skipped path traversal: {raw!r}")
+                continue
+            ext = p.suffix.lower()
+            if ext not in ALL_EXTENSIONS:
+                warnings.append(f"Skipped unsupported extension: {raw!r}")
+                continue
+            pr = p.resolve()
+            if pr not in seen:
+                seen.add(pr)
+                files.append(p)
+        else:
+            warnings.append(f"Skipped non-file/non-dir entry: {raw!r}")
+
+        if len(files) >= max_files:
+            break
+
+    return files[:max_files], warnings
+
+
 def index_local(
     path: str,
     name: Optional[str] = None,
@@ -135,6 +222,7 @@ def index_local(
     incremental: bool = True,
     max_files: int = 500,
     autotune: bool = False,
+    paths: Optional[list] = None,
 ) -> dict:
     """Index a local folder containing documentation files.
 
@@ -152,6 +240,11 @@ def index_local(
         follow_symlinks: Whether to follow symlinks.
         incremental: When True and an existing index exists, only re-index changed files.
         max_files: Maximum number of doc files to index. Default 500.
+        paths: Optional list of explicit paths to index. When provided, the tree
+            walk is skipped; only these files (and the contents of any directories
+            in the list) are indexed. Each entry may be absolute or relative to
+            ``path``. Useful for batch-indexing exactly the files an agent already
+            knows about — e.g. the doc files git just touched.
 
     Returns:
         Dict with indexing results.
@@ -168,16 +261,27 @@ def index_local(
     warnings = []
 
     try:
-        doc_files, discover_warnings = discover_doc_files(
-            folder_path,
-            max_files=max_files,
-            extra_ignore_patterns=extra_ignore_patterns,
-            follow_symlinks=follow_symlinks,
-        )
+        if paths:
+            doc_files, discover_warnings = _resolve_explicit_paths(
+                folder_path,
+                list(paths),
+                max_files=max_files,
+                follow_symlinks=follow_symlinks,
+            )
+        else:
+            doc_files, discover_warnings = discover_doc_files(
+                folder_path,
+                max_files=max_files,
+                extra_ignore_patterns=extra_ignore_patterns,
+                follow_symlinks=follow_symlinks,
+            )
         warnings.extend(discover_warnings)
 
         if not doc_files:
-            return {"success": False, "error": "No documentation files found"}
+            err: dict = {"success": False, "error": "No documentation files found"}
+            if warnings:
+                err["warnings"] = warnings
+            return err
 
         repo_name = name if name else folder_path.name
         owner = "local"

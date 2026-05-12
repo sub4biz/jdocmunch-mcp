@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.61.0] — 2026-05-12
+
+### New: explicit-paths indexing
+
+`index_local` gains a `paths=[...]` parameter that bypasses the directory
+walk and indexes only the listed files / subdirs. Each entry can be
+absolute or relative to the `path` root. Useful for batch-indexing
+exactly the doc files an agent already knows about — e.g. *the docs git
+just touched*, *the pages in this PR's diff*, *the markdown matched by
+fd / rg* — without the cost (or surprise) of a full-tree walk.
+
+Security: explicit paths are validated the same way as walk-discovered
+files — entries outside the root, path-traversal attempts, and symlink
+escapes are rejected with per-entry `warnings`. Unsupported extensions
+are warned-and-skipped rather than silently passed.
+
+CLI: new `--paths-from FILE` flag on `jdocmunch-mcp index-local`. Use
+`-` for stdin to make the command pipe-friendly with `find`, `fd`,
+`fzf`, and `rg`:
+
+```bash
+git diff --name-only HEAD~5 -- '*.md' \
+  | jdocmunch-mcp index-local --path docs/ --paths-from -
+```
+
+Empty input is treated as an error so the command doesn't silently fall
+through to a full-tree index. Lines beginning with `#` are skipped.
+
+### Notes
+- Fully additive — `paths` defaults to `None`, preserving every existing
+  call shape. The MCP `index_local` tool's `inputSchema` gains an
+  optional `paths: list[string]` field with the same semantics.
+- 10 new tests in `test_v1_61_0.py`. 1174 passed.
+
 ## [1.60.0] — 2026-05-11
 
 ### New: `find_similar_sections` — multi-signal dedup detection
