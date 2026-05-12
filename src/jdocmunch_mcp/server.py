@@ -86,6 +86,7 @@ from .tools.get_section_diff import get_section_diff
 from .tools.get_doc_health import get_doc_health
 from .tools.doc_health_radar import doc_health_radar
 from .tools.health_radar import diff_doc_health_radar
+from .tools.get_doc_pr_risk_profile import get_doc_pr_risk_profile
 from .tools.get_tutorial_path import get_tutorial_path
 from .tools.get_undocumented_symbols import get_undocumented_symbols
 from .tools.tune_weights import tune_weights
@@ -1164,6 +1165,46 @@ async def list_tools() -> list[Tool]:
             }
         ),
         Tool(
+            name="get_doc_pr_risk_profile",
+            description=(
+                "Composite doc-PR risk profile. Fuses volume + blast_radius + "
+                "backlink_burden + tutorial_disruption + role_weight signals over "
+                "a caller-supplied list of changed sections into a 0-1 risk_score "
+                "with risk_level (low/medium/high/critical), top-5 blockers, and "
+                "a one-line recommended_action. Caller computes the change list "
+                "from a git diff or pairs with get_recent_changes. Mirrors jcm's "
+                "get_pr_risk_profile."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo": {"type": "string"},
+                    "changed_sections": {
+                        "type": "array",
+                        "description": (
+                            "List of changed sections. Each entry can be a bare "
+                            "section_id (str, kind defaults to 'modified') or "
+                            "{section_id, kind} where kind in {added, modified, deleted}."
+                        ),
+                        "items": {
+                            "oneOf": [
+                                {"type": "string"},
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "section_id": {"type": "string"},
+                                        "kind": {"type": "string", "enum": ["added", "modified", "deleted"]},
+                                    },
+                                    "required": ["section_id"],
+                                },
+                            ]
+                        },
+                    },
+                },
+                "required": ["repo", "changed_sections"],
+            },
+        ),
+        Tool(
             name="diff_doc_health_radar",
             description=(
                 "Diff two doc_health_radar payloads. Pure function — pass the `radar` "
@@ -1778,6 +1819,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             result = diff_doc_health_radar(
                 baseline=arguments["baseline"],
                 current=arguments["current"],
+            )
+        elif name == "get_doc_pr_risk_profile":
+            result = get_doc_pr_risk_profile(
+                repo=arguments["repo"],
+                changed_sections=arguments["changed_sections"],
+                storage_path=storage_path,
             )
         elif name == "get_tutorial_path":
             result = get_tutorial_path(

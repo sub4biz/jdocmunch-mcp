@@ -1,5 +1,45 @@
 # Changelog
 
+## [1.63.0] — 2026-05-12 — `get_doc_pr_risk_profile` (Phase-2 sibling-parity COMPLETE)
+
+Composite doc-PR risk profile. Fuses five orthogonal signals over a
+caller-supplied list of changed sections into a 0-1 `risk_score` with
+overall `risk_level` (low / medium / high / critical), a ranked top-5
+list of blockers, and a one-line `recommended_action`. Mirrors jcm's
+`get_pr_risk_profile`.
+
+### Signals
+
+| Signal                | Source                                              |
+|-----------------------|-----------------------------------------------------|
+| `volume`              | changed sections / total sections (×10 cap)         |
+| `blast_radius`        | mean blast_score for modified + deleted sections    |
+| `backlink_burden`     | avg inbound references per changed section / 5     |
+| `tutorial_disruption` | % of changes on tutorial chains                     |
+| `role_weight`         | % of changes hitting tutorial/reference/guide roles |
+
+Weights: `volume 0.15 + blast 0.30 + backlinks 0.20 + tutorial 0.20 + role 0.15`.
+Thresholds: `≤0.25 low / ≤0.50 medium / ≤0.75 high / >0.75 critical`.
+
+### Input shape
+
+Caller passes `changed_sections` as either bare section IDs (str,
+defaults to `kind=modified`) or `{section_id, kind}` dicts where
+`kind ∈ {added, modified, deleted}`. Added sections skip backlink
+lookup since they cannot have inbound refs yet.
+
+The tool does **not** diff anything itself — pair with `get_recent_changes`
+or compute the list from `git diff` in your CI step.
+
+### Stats
+
+- Tool count: 59 (+ `get_doc_pr_risk_profile`)
+- Tests: 1196 passed (+12 new — 5 pure-function + 7 integration)
+
+This completes Phase 2 of the sibling-parity PRD across all three munches.
+
+---
+
 ## [1.62.0] — 2026-05-12 — `doc_health_radar` + `diff_doc_health_radar`
 
 Six-axis health radar for documentation indexes, plus a pure-function

@@ -1,6 +1,12 @@
 # jdocmunch-mcp
 
-**Version:** 1.62.0 | **Tests:** `pytest tests/ -q` (1184 passed)
+**Version:** 1.63.0 | **Tests:** `pytest tests/ -q` (1196 passed)
+
+## v1.63.0 — `get_doc_pr_risk_profile` (Phase-2 sibling-parity COMPLETE)
+Composite doc-PR risk: volume + blast_radius + backlink_burden + tutorial_disruption
++ role_weight → 0-1 risk_score + level (low/medium/high/critical) + top-5 blockers +
+recommended_action. Caller supplies the change list (paired with git diff or
+get_recent_changes). Mirrors jcm's get_pr_risk_profile. Tool count 58 → 59.
 
 ## v1.62.0 — `doc_health_radar` + `diff_doc_health_radar` (Phase-2 sibling-parity)
 Six-axis 0-100 doc-index health scorecard: freshness, link_integrity, orphan_health,
