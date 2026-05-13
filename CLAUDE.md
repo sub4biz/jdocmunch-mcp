@@ -1,6 +1,15 @@
 # jdocmunch-mcp
 
-**Version:** 1.63.2 | **Tests:** `pytest tests/ -q` (1199 passed)
+**Version:** 1.63.3 | **Tests:** `pytest tests/ -q` (1205 passed)
+
+## v1.63.3 - `jdocmunch_guide` sibling-parity tool
+Adds `jdocmunch_guide` -- doc-MCP sibling of `jcodemunch_guide` (jcm since
+v1.84.0). Returns the version-current CLAUDE.md / AGENT.md policy snippet
+for jdocmunch-mcp so an agent can keep a one-line CLAUDE.md
+(`"Call jdocmunch_guide and strictly follow its instructions."`) instead
+of pasting a static block that drifts. Tool count 59 -> 60. Companion
+release of jdatamunch-mcp v1.12.2 ships `jdatamunch_guide` on the same
+shape. Backstory: issue #296 (Codex compatibility report by @rknighton).
 
 ## v1.63.2 - drift-proof __version__ via importlib.metadata
 `__version__` is now derived from `importlib.metadata.version("jdocmunch-mcp")`

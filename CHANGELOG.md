@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.63.3] - 2026-05-13 - `jdocmunch_guide` sibling-parity tool
+
+Adds `jdocmunch_guide` -- the doc-MCP sibling of `jcodemunch_guide` (jcm
+since v1.84.0). Returns the version-current CLAUDE.md / AGENT.md policy
+snippet for jdocmunch-mcp so an agent can keep a one-line CLAUDE.md
+(`"Call jdocmunch_guide and strictly follow its instructions."`) instead
+of pasting a static block that drifts from the installed version.
+
+Backstory: GitHub issue #296 (Codex Desktop compatibility report by
+@rknighton) noted that jcodemunch-mcp ships a guide tool but jdocmunch-mcp
+doesn't, leaving agents told to call `<pkg>_guide first` without an
+onboarding entry point for the doc surface. Sibling parity closes the
+gap. Companion v1.12.2 release of jdatamunch-mcp ships `jdatamunch_guide`
+on the same shape.
+
+Tool count 59 -> 60. No tool, schema, or wire-format change for existing
+tools. 1205 tests pass (1199 + 6 new in `test_v1_63_3.py`).
+
 ## [1.63.2] - 2026-05-12 - drift-proof __version__ via importlib.metadata
 
 `src/jdocmunch_mcp/__init__.py` now derives `__version__` from

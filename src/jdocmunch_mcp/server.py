@@ -1442,7 +1442,78 @@ async def list_tools() -> list[Tool]:
                 "required": ["repo", "section_id"]
             }
         ),
+        Tool(
+            name="jdocmunch_guide",
+            description=(
+                "Return the version-current CLAUDE.md / AGENT.md policy snippet for "
+                "jdocmunch-mcp. Lets an agent keep a one-line CLAUDE.md (e.g. \"Call "
+                "jdocmunch_guide and strictly follow its instructions.\") instead of "
+                "pasting a static snippet that drifts from the installed version. "
+                "Idempotent, no repo context required. Sibling of jcodemunch_guide."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
     ]
+
+
+def _generate_doc_md_snippet() -> str:
+    """Return the recommended CLAUDE.md prompt-policy snippet for jdocmunch-mcp.
+
+    Mirrors jcodemunch-mcp's `_generate_claude_md_snippet`. Idempotent: produces
+    the same text on every call for a given installed version.
+    """
+    categories = [
+        ("Indexing", ["index_local", "doc_index_repo", "delete_index", "verify_index"]),
+        ("Discovery", ["doc_list_repos", "list_docs", "list_terms", "get_all_roles", "get_all_tags",
+                       "get_index_overview", "list_repo_groups", "define_repo_group"]),
+        ("Document navigation", ["get_doc", "get_toc", "get_toc_tree", "get_document_outline",
+                                  "get_tutorial_path"]),
+        ("Section retrieval", ["search_sections", "search_titles", "count_sections",
+                                "get_section", "get_sections", "get_section_excerpt",
+                                "get_section_excerpts", "get_section_context",
+                                "describe_section", "section_neighbors", "get_section_path",
+                                "get_section_descendants", "get_section_summary",
+                                "get_section_summaries"]),
+        ("Cross-references & graph", ["get_backlinks", "get_related_sections",
+                                       "get_broken_links", "get_orphan_sections",
+                                       "find_similar_sections", "get_section_diff",
+                                       "get_section_blast_radius", "check_section_delete_safe"]),
+        ("OpenAPI / schema tools", ["find_endpoint", "list_endpoints_by_tag",
+                                     "find_operations_using_schema", "get_schema_graph"]),
+        ("Glossary / terms", ["lookup_term"]),
+        ("Code linking", ["find_code_examples", "link_code_to_symbols",
+                          "get_undocumented_symbols"]),
+        ("Health & metrics", ["get_doc_coverage", "get_stale_pages", "get_wiki_stats",
+                               "get_recent_changes", "get_doc_health", "doc_health_radar",
+                               "diff_doc_health_radar", "get_doc_pr_risk_profile"]),
+        ("Utilities", ["analyze_perf", "get_session_stats", "tune_weights",
+                        "check_embedding_drift"]),
+        ("Self-Guide", ["jdocmunch_guide"]),
+    ]
+    from . import __version__ as _ver
+    lines = [
+        f"## jdocmunch-mcp (v{_ver})",
+        "",
+        "Use jdocmunch-mcp tools instead of Read/Grep/Glob for any indexed documentation.",
+        "",
+        "### Quick start",
+        "1. `doc_list_repos` -- check if the docs are indexed.",
+        "   If not: `index_local` (local folder) or `doc_index_repo` (GitHub URL).",
+        "2. `search_sections` -- BM25 + optional semantic over section headings + bodies.",
+        "3. `get_section` / `get_sections` -- pull section body by ID (byte-precise).",
+        "4. `get_toc_tree` -- heading hierarchy for orientation.",
+        "",
+        "### All tools",
+    ]
+    for cat, tools in categories:
+        lines.append(f"**{cat}:** " + ", ".join(f"`{t}`" for t in tools))
+    lines.append("")
+    lines.append("Never fall back to Read, Grep, or Glob for indexed docs.")
+    lines.append("")
+    return "\n".join(lines)
 
 
 @server.list_resources()
@@ -1885,6 +1956,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 recent_edit_days=arguments.get("recent_edit_days", 14),
                 storage_path=storage_path,
             )
+        elif name == "jdocmunch_guide":
+            from . import __version__ as _ver
+            result = {
+                "version": _ver,
+                "content": _generate_doc_md_snippet(),
+            }
         else:
             result = {"error": f"Unknown tool: {name}"}
 
