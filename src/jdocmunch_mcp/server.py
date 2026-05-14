@@ -231,8 +231,8 @@ def _all_tools() -> list[Tool]:
                     },
                     "max_files": {
                         "type": "integer",
-                        "description": "Maximum number of doc files to index. Raise this for large doc trees. Default 500.",
-                        "default": 500
+                        "description": "Maximum number of doc files to index. Default 10000. When the cap is hit, the response includes `truncated: true`, `discovered: <total found>`, and `indexed: <max_files>` so the caller can detect data loss programmatically. Raise this for very large corpora.",
+                        "default": 10_000
                     },
                     "name": {
                         "type": "string",

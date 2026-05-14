@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.64.2] - 2026-05-14 - silent truncation footgun in `index_local` (jdoc#15)
+
+Reported by @LuigiNicaPRO: `index_local()` on a 5,705-file Obsidian Vault
+returned `success: true` and `file_count: 498` with no programmatic
+signal that ~90% of the corpus had been silently dropped. Default
+`max_files=500` was buried in the schema; the cap-hit hint was a
+free-text `note` string in the response.
+
+Four fixes:
+
+1. **Default `max_files` raised from 500 to 10,000.** Modern doc repos
+   and Obsidian Vaults routinely exceed 500.
+2. **Walker counts past the cap** (up to a 20x safety ceiling) so
+   `discovered` reflects the true corpus size, not the cap. Returns a
+   new tuple shape `(files, warnings, discovered_count)`.
+3. **Structured top-level truncation fields**: when the cap is hit, the
+   response now includes `truncated: true`, `discovered: <total>`,
+   `indexed: <max_files>`. Programmatic detection is trivial:
+   `if result.get("truncated"):`. When the corpus fits, `truncated:
+   false` is set explicitly.
+4. **Structured warning entry** in the existing `warnings` array
+   alongside the legacy `note` string (kept for back-compat).
+
+Both the full-index and incremental code paths surface the new fields.
+
+Walker order is still filesystem order -- prefer-newest is a useful
+future enhancement (@LuigiNicaPRO's suggestion #4) but lands cleanest
+in a separate ship since it changes which subset gets indexed, not
+just how truncation is reported.
+
+Regression coverage in `tests/test_index_local_truncation.py` (6 tests).
+
 ## [1.64.1] - 2026-05-14 - O(N^2) hang in `related_persist.build()` (jdoc#14)
 
 Reported by @LuigiNicaPRO with a py-spy backtrace and a working local

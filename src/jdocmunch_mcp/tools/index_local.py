@@ -42,16 +42,28 @@ def _should_skip(rel_path: str) -> bool:
     return False
 
 
+_DISCOVERY_HARD_CEILING_MULT = 20  # safety: stop counting at max_files * this
+
+
 def discover_doc_files(
     folder_path: Path,
-    max_files: int = 500,
+    max_files: int = 10_000,
     max_size: int = DEFAULT_MAX_FILE_SIZE,
     extra_ignore_patterns: Optional[list] = None,
     follow_symlinks: bool = False,
 ) -> tuple:
-    """Discover doc files (.md, .txt, .rst) with security filtering."""
+    """Discover doc files (.md, .txt, .rst) with security filtering.
+
+    Returns ``(files, warnings, discovered_count)``. ``files`` is capped at
+    ``max_files``; ``discovered_count`` is the total that matched all filters
+    (capped at ``max_files * _DISCOVERY_HARD_CEILING_MULT`` so a pathological
+    directory tree cannot run forever). When ``discovered_count > max_files``
+    the caller is responsible for surfacing truncation (jdoc#15).
+    """
     files = []
     warnings = []
+    discovered = 0
+    hard_ceiling = max_files * _DISCOVERY_HARD_CEILING_MULT
     root = folder_path.resolve()
 
     gitignore_spec = _load_gitignore(root)
@@ -116,12 +128,16 @@ def discover_doc_files(
             except OSError:
                 continue
 
-            files.append(file_path)
+            discovered += 1
+            if len(files) < max_files:
+                files.append(file_path)
 
-        if len(files) >= max_files:
+        # Stop walking entirely when the safety ceiling is reached so an
+        # adversarial / runaway directory tree can't churn forever.
+        if discovered >= hard_ceiling:
             break
 
-    return files[:max_files], warnings
+    return files[:max_files], warnings, discovered
 
 
 def _resolve_explicit_paths(
@@ -171,7 +187,7 @@ def _resolve_explicit_paths(
             continue
 
         if p.is_dir():
-            sub_files, sub_warnings = discover_doc_files(
+            sub_files, sub_warnings, _sub_discovered = discover_doc_files(
                 p,
                 max_files=max_files - len(files),
                 follow_symlinks=follow_symlinks,
@@ -220,7 +236,7 @@ def index_local(
     extra_ignore_patterns: Optional[list] = None,
     follow_symlinks: bool = False,
     incremental: bool = True,
-    max_files: int = 500,
+    max_files: int = 10_000,
     autotune: bool = False,
     paths: Optional[list] = None,
 ) -> dict:
@@ -239,7 +255,9 @@ def index_local(
         extra_ignore_patterns: Additional gitignore-style patterns to exclude.
         follow_symlinks: Whether to follow symlinks.
         incremental: When True and an existing index exists, only re-index changed files.
-        max_files: Maximum number of doc files to index. Default 500.
+        max_files: Maximum number of doc files to index. Default 10000.
+                   When hit, response includes truncated/discovered/indexed
+                   top-level fields (jdoc#15).
         paths: Optional list of explicit paths to index. When provided, the tree
             walk is skipped; only these files (and the contents of any directories
             in the list) are indexed. Each entry may be absolute or relative to
@@ -268,8 +286,9 @@ def index_local(
                 max_files=max_files,
                 follow_symlinks=follow_symlinks,
             )
+            discovered_count = len(doc_files)
         else:
-            doc_files, discover_warnings = discover_doc_files(
+            doc_files, discover_warnings, discovered_count = discover_doc_files(
                 folder_path,
                 max_files=max_files,
                 extra_ignore_patterns=extra_ignore_patterns,
@@ -310,7 +329,7 @@ def index_local(
 
             if not changed and not new and not deleted:
                 latency_ms = int((time.perf_counter() - t0) * 1000)
-                return {
+                nochange_result: dict = {
                     "success": True,
                     "message": "No changes detected",
                     "repo": f"{owner}/{repo_name}",
@@ -319,6 +338,15 @@ def index_local(
                     "changed": 0, "new": 0, "deleted": 0,
                     "_meta": {"latency_ms": latency_ms},
                 }
+                # jdoc#15: report truncation even when nothing changed,
+                # since the visible-corpus boundary is unchanged.
+                if discovered_count > max_files:
+                    nochange_result["truncated"] = True
+                    nochange_result["discovered"] = discovered_count
+                    nochange_result["indexed"] = len(doc_files)
+                else:
+                    nochange_result["truncated"] = False
+                return nochange_result
 
             files_to_parse = set(changed) | set(new)
             new_sections = []
@@ -363,6 +391,18 @@ def index_local(
                 "semantic_search": use_embeddings and get_provider_name() is not None,
                 "_meta": {"latency_ms": latency_ms},
             }
+            # jdoc#15: surface truncation on the incremental path too.
+            if discovered_count > max_files:
+                result["truncated"] = True
+                result["discovered"] = discovered_count
+                result["indexed"] = len(doc_files)
+                warnings.append(
+                    f"max_files cap hit: indexed {len(doc_files)} of "
+                    f"{discovered_count} discovered files. Raise max_files "
+                    f"to capture the rest."
+                )
+            else:
+                result["truncated"] = False
             if warnings:
                 result["warnings"] = warnings
             return result
@@ -464,10 +504,29 @@ def index_local(
         if autotune_result is not None:
             result["autotune"] = autotune_result
 
+        # jdoc#15: surface truncation as structured top-level fields so
+        # callers can detect it programmatically, not just from a free-text
+        # note string. `truncated` is False when the corpus fit entirely
+        # under the cap; True when the cap was hit. `discovered` is the
+        # full match count (capped at max_files * safety ceiling).
+        if discovered_count > max_files:
+            result["truncated"] = True
+            result["discovered"] = discovered_count
+            result["indexed"] = len(doc_files)
+            warnings.append(
+                f"max_files cap hit: indexed {len(doc_files)} of "
+                f"{discovered_count} discovered files. Raise max_files to "
+                f"capture the rest."
+            )
+            result["note"] = (
+                f"Folder has many files; indexed first {max_files} of "
+                f"{discovered_count}. Raise max_files to include the rest."
+            )
+        else:
+            result["truncated"] = False
+
         if warnings:
             result["warnings"] = warnings
-        if len(doc_files) >= max_files:
-            result["note"] = f"Folder has many files; indexed first {max_files}"
 
         return result
 
