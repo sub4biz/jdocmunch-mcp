@@ -25,7 +25,10 @@ Schema:
         }
     }
 
-Build cost is O(N) for structural edges (parent/child/sibling). Semantic
+Build cost is O(N) for structural edges (parent/child/sibling) since
+v1.64.1: a single by-id map and parent→children map are precomputed once
+and threaded into every per-section ``structural_neighbors`` call. The
+v1.24–v1.63 path was O(N²) (jdoc#14, reported by @LuigiNicaPRO). Semantic
 edges are computed when embeddings are present and run O(N²) over the
 embedding set; we cap output at top-5 per section so the sidecar size
 stays linear in N.
@@ -42,7 +45,12 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from .related import semantic_neighbors, structural_neighbors
+from .related import (
+    _by_id as _related_by_id,
+    _children_by_parent,
+    semantic_neighbors,
+    structural_neighbors,
+)
 
 _FILENAME = "{name}.related.json"
 _LOCK = threading.Lock()
@@ -57,18 +65,39 @@ def _path(base_path: Optional[str], owner: str, name: str) -> Path:
 
 
 def build(sections: list, *, top_n_semantic: int = 5, min_score: float = 0.6) -> dict:
-    """Compute the full adjacency list from a list of section dicts."""
+    """Compute the full adjacency list from a list of section dicts.
+
+    Hot-path build for `index_local`: was O(N^2) per outer iteration (jdoc#14)
+    because `section_dicts`, the by-id map, and per-parent child scans were
+    rebuilt inside the loop. Precomputed once now; structural build is O(N),
+    semantic build remains O(N^2) on embedding sets (capped output per
+    section keeps the sidecar size linear).
+    """
+    # Single normalization pass — Section objects → dicts.
+    section_dicts = [
+        s if isinstance(s, dict) else _section_to_dict(s) for s in sections
+    ]
+    by_id_cache = _related_by_id(section_dicts)
+    children_cache = _children_by_parent(section_dicts)
+
     by_section: dict = {}
-    for sec in sections:
-        sid = sec.get("id") if isinstance(sec, dict) else getattr(sec, "id", None)
+    for sec in section_dicts:
+        sid = sec.get("id")
         if not sid:
             continue
-        # Section objects vs dicts — tolerate both.
-        section_dicts = [
-            s if isinstance(s, dict) else _section_to_dict(s) for s in sections
-        ]
-        struct = structural_neighbors(section_dicts, sid)
-        sem = semantic_neighbors(section_dicts, sid, top_n=top_n_semantic, min_score=min_score)
+        struct = structural_neighbors(
+            section_dicts,
+            sid,
+            _by_id_cache=by_id_cache,
+            _children_cache=children_cache,
+        )
+        sem = semantic_neighbors(
+            section_dicts,
+            sid,
+            top_n=top_n_semantic,
+            min_score=min_score,
+            _by_id_cache=by_id_cache,
+        )
         by_section[sid] = {"structural": struct, "semantic": sem}
     return {
         "version": _SCHEMA_VERSION,

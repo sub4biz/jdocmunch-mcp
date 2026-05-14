@@ -40,10 +40,29 @@ def _by_id(sections: list) -> dict:
     return {s.get("id"): s for s in sections if isinstance(s, dict) and s.get("id")}
 
 
-def _children_of(parent_id: str, sections: list) -> list:
+def _children_by_parent(sections: list) -> dict:
+    """Build a parent_id → [section, ...] map in one pass.
+
+    Lets callers replace per-call O(N) linear scans of ``sections`` with
+    O(1) dict lookups. Hot-path callers (e.g. ``related_persist.build``)
+    should pass the result via the ``_children_cache`` kwarg below.
+    """
+    out: dict = {}
+    for s in sections:
+        if not isinstance(s, dict):
+            continue
+        pid = s.get("parent_id") or ""
+        if pid:
+            out.setdefault(pid, []).append(s)
+    return out
+
+
+def _children_of(parent_id: str, sections: list, cache: Optional[dict] = None) -> list:
     """Return every section whose parent_id matches the given id."""
     if not parent_id:
         return []
+    if cache is not None:
+        return cache.get(parent_id, [])
     return [s for s in sections if s.get("parent_id") == parent_id]
 
 
@@ -56,14 +75,21 @@ def structural_neighbors(
     include_siblings: bool = True,
     include_cousins: bool = False,
     max_per_kind: int = 10,
+    _by_id_cache: Optional[dict] = None,
+    _children_cache: Optional[dict] = None,
 ) -> list[dict]:
     """Return structurally-related sections for ``section_id``.
 
     Order: parent → children → siblings → cousins. Each entry has a
     ``kind`` discriminator so callers can filter or weight by relation
     type.
+
+    The ``_by_id_cache`` and ``_children_cache`` kwargs let hot-path
+    callers reuse precomputed lookups so the call is O(1) in section count
+    instead of O(N). External callers can ignore them; on-demand callers
+    pay the O(N) build per call as before.
     """
-    by_id = _by_id(sections)
+    by_id = _by_id_cache if _by_id_cache is not None else _by_id(sections)
     target = by_id.get(section_id)
     if not target:
         return []
@@ -91,21 +117,24 @@ def structural_neighbors(
             _add(parent, "parent")
 
     if include_children:
-        for child in _children_of(section_id, sections)[:max_per_kind]:
+        for child in _children_of(section_id, sections, _children_cache)[:max_per_kind]:
             _add(child, "child")
 
     if include_siblings and parent_id:
-        siblings = [s for s in _children_of(parent_id, sections) if s.get("id") != section_id]
+        siblings = [
+            s for s in _children_of(parent_id, sections, _children_cache)
+            if s.get("id") != section_id
+        ]
         for sib in siblings[:max_per_kind]:
             _add(sib, "sibling")
 
     if include_cousins and parent_id:
         grandparent_id = (by_id.get(parent_id) or {}).get("parent_id") or ""
         if grandparent_id:
-            for uncle in _children_of(grandparent_id, sections):
+            for uncle in _children_of(grandparent_id, sections, _children_cache):
                 if uncle.get("id") == parent_id:
                     continue
-                for cousin in _children_of(uncle.get("id"), sections)[:max_per_kind]:
+                for cousin in _children_of(uncle.get("id"), sections, _children_cache)[:max_per_kind]:
                     _add(cousin, "cousin")
 
     return out
@@ -121,13 +150,14 @@ def semantic_neighbors(
     *,
     top_n: int = 5,
     min_score: float = 0.6,
+    _by_id_cache: Optional[dict] = None,
 ) -> list[dict]:
     """Return up to ``top_n`` cosine-nearest sections to ``section_id``.
 
     Requires the index to have been built with embeddings; sections
     without embeddings are skipped silently. Same-section is excluded.
     """
-    by_id = _by_id(sections)
+    by_id = _by_id_cache if _by_id_cache is not None else _by_id(sections)
     target = by_id.get(section_id)
     if not target:
         return []

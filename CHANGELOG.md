@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.64.1] - 2026-05-14 - O(N^2) hang in `related_persist.build()` (jdoc#14)
+
+Reported by @LuigiNicaPRO with a py-spy backtrace and a working local
+patch in hand: `index_local` on a 10-20k-section repo hung at 100% CPU
+on a single thread. The docstring claimed `build()` was O(N) on
+structural edges; it was actually O(N^2) on two stacked patterns:
+
+1. `section_dicts` was rebuilt inside the per-section loop on every
+   iteration -- O(N) work x N iterations = O(N^2) before any neighbor
+   computation began.
+2. `structural_neighbors()` rebuilt its by-id map and called
+   `_children_of(parent_id, sections)` up to 4 times per section, each
+   a linear scan -- another O(N) per outer iteration.
+
+Fix: precompute `section_dicts`, the by-id map, and a new
+parent->children map once before the loop and thread them into the
+per-section calls via two new optional kwargs on `structural_neighbors`
+and `semantic_neighbors`. External callers ignore the new kwargs and
+keep the original behavior bit-for-bit -- the cache parameters are
+prefixed `_` to mark them as internal hot-path use only.
+
+Bench (Windows / Python 3.14): the fixed path indexes 10k sections in
+~0.6s. The pre-fix path on the same input ran for minutes before being
+killed.
+
+Regression coverage in `tests/test_related_persist_perf.py`: asserts
+the build scales linearly between 2k and 4k sections (ratio <3.5x) and
+that 15k completes in <5s.
+
 ## [1.64.0] - 2026-05-14 - `tool_profile` + `disabled_tools` config (#297)
 
 Reported by @AlexJ-StL in #297: Google Antigravity caps MCP-server tool
