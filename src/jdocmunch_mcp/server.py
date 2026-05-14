@@ -234,6 +234,12 @@ def _all_tools() -> list[Tool]:
                         "description": "Maximum number of doc files to index. Default 10000. When the cap is hit, the response includes `truncated: true`, `discovered: <total found>`, and `indexed: <max_files>` so the caller can detect data loss programmatically. Raise this for very large corpora.",
                         "default": 10_000
                     },
+                    "sort_by": {
+                        "type": "string",
+                        "enum": ["newest", "walk_order"],
+                        "description": "Order in which files are truncated when discovered > max_files. 'newest' (default) keeps the most recently-edited files so a fresh edit is always in the index. 'walk_order' preserves filesystem-walk order for deterministic reproducible builds. No effect when corpus fits under the cap.",
+                        "default": "newest"
+                    },
                     "name": {
                         "type": "string",
                         "description": "Optional repo identifier override. Use this when two folders share the same name (e.g. both named 'docs'). If omitted, the folder name is used. Example: 'requests-docs', 'flask-docs'."
@@ -1662,7 +1668,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 extra_ignore_patterns=arguments.get("extra_ignore_patterns"),
                 follow_symlinks=arguments.get("follow_symlinks", False),
                 incremental=arguments.get("incremental", True),
-                max_files=arguments.get("max_files", 500),
+                max_files=arguments.get("max_files", 10_000),
+                sort_by=arguments.get("sort_by", "newest"),
                 autotune=arguments.get("autotune", False),
                 paths=arguments.get("paths"),
             )

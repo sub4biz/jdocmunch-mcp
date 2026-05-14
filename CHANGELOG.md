@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.65.0] - 2026-05-14 - prefer-newest walk order on truncation (jdoc#16)
+
+Follow-up to jdoc#15 (@LuigiNicaPRO). When the corpus exceeds `max_files`
+and truncation kicks in, the previous walker took the first `max_files`
+in filesystem-walk order -- non-deterministic from the user's
+perspective. A file edited 4 minutes before the index call could be
+silently dropped while older files made the cut. Reported by
+@LuigiNicaPRO as suggestion #4 on jdoc#15; deferred to its own ship.
+
+New `sort_by` kwarg on `index_local` and `discover_doc_files`:
+
+- `sort_by="newest"` **(new default):** when `discovered > max_files`,
+  sorts by mtime descending so the indexed subset is always the N
+  most recently-edited files. Recent edits are always in the index
+  regardless of filesystem-walk position.
+- `sort_by="walk_order"`: pre-1.65 behavior. Useful for deterministic
+  reproducible builds where mtimes shift but content doesn't.
+
+The sort only runs on the truncation path (`discovered > max_files`),
+so corpora under the cap pay zero cost. mtime is captured in the same
+`stat()` call that already does the size check, so no extra syscalls
+either.
+
+Regression coverage in `tests/test_index_local_sort_by.py` (6 tests).
+
 ## [1.64.2] - 2026-05-14 - silent truncation footgun in `index_local` (jdoc#15)
 
 Reported by @LuigiNicaPRO: `index_local()` on a 5,705-file Obsidian Vault

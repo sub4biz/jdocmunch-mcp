@@ -51,6 +51,7 @@ def discover_doc_files(
     max_size: int = DEFAULT_MAX_FILE_SIZE,
     extra_ignore_patterns: Optional[list] = None,
     follow_symlinks: bool = False,
+    sort_by: str = "newest",
 ) -> tuple:
     """Discover doc files (.md, .txt, .rst) with security filtering.
 
@@ -59,10 +60,18 @@ def discover_doc_files(
     (capped at ``max_files * _DISCOVERY_HARD_CEILING_MULT`` so a pathological
     directory tree cannot run forever). When ``discovered_count > max_files``
     the caller is responsible for surfacing truncation (jdoc#15).
+
+    ``sort_by`` (jdoc#16) controls truncation order:
+      * ``"newest"`` (default): when the cap is hit, the indexed subset is
+        the ``max_files`` files with the most recent mtime. So a freshly-
+        edited file is always in the index regardless of where it sits in
+        the filesystem walk.
+      * ``"walk_order"``: take the first ``max_files`` in filesystem-walk
+        order (the pre-jdoc#16 behavior). Useful for deterministic
+        reproducible builds where mtimes can shift.
     """
-    files = []
+    discovered_items: list = []  # [(file_path, mtime_or_zero), ...]
     warnings = []
-    discovered = 0
     hard_ceiling = max_files * _DISCOVERY_HARD_CEILING_MULT
     root = folder_path.resolve()
 
@@ -123,21 +132,27 @@ def discover_doc_files(
                 continue
 
             try:
-                if file_path.stat().st_size > max_size:
+                st = file_path.stat()
+                if st.st_size > max_size:
                     continue
+                mtime = st.st_mtime
             except OSError:
                 continue
 
-            discovered += 1
-            if len(files) < max_files:
-                files.append(file_path)
+            discovered_items.append((file_path, mtime))
 
         # Stop walking entirely when the safety ceiling is reached so an
         # adversarial / runaway directory tree can't churn forever.
-        if discovered >= hard_ceiling:
+        if len(discovered_items) >= hard_ceiling:
             break
 
-    return files[:max_files], warnings, discovered
+    discovered = len(discovered_items)
+    if sort_by == "newest" and discovered > max_files:
+        # Only sort on the truncation path; the un-truncated case
+        # preserves walk order so callers see no behavior change.
+        discovered_items.sort(key=lambda item: item[1], reverse=True)
+    files = [fp for fp, _ in discovered_items[:max_files]]
+    return files, warnings, discovered
 
 
 def _resolve_explicit_paths(
@@ -237,6 +252,7 @@ def index_local(
     follow_symlinks: bool = False,
     incremental: bool = True,
     max_files: int = 10_000,
+    sort_by: str = "newest",
     autotune: bool = False,
     paths: Optional[list] = None,
 ) -> dict:
@@ -258,6 +274,13 @@ def index_local(
         max_files: Maximum number of doc files to index. Default 10000.
                    When hit, response includes truncated/discovered/indexed
                    top-level fields (jdoc#15).
+        sort_by: "newest" (default) or "walk_order". Controls which subset
+                 is indexed when discovered > max_files. "newest" sorts by
+                 mtime descending so recently-edited files always make it
+                 into the index regardless of filesystem-walk position
+                 (jdoc#16). "walk_order" preserves the pre-1.65 behavior
+                 for callers needing deterministic reproducible builds.
+                 No effect when the corpus fits under the cap.
         paths: Optional list of explicit paths to index. When provided, the tree
             walk is skipped; only these files (and the contents of any directories
             in the list) are indexed. Each entry may be absolute or relative to
@@ -293,6 +316,7 @@ def index_local(
                 max_files=max_files,
                 extra_ignore_patterns=extra_ignore_patterns,
                 follow_symlinks=follow_symlinks,
+                sort_by=sort_by,
             )
         warnings.extend(discover_warnings)
 
