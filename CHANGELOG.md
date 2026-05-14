@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.64.0] - 2026-05-14 - `tool_profile` + `disabled_tools` config (#297)
+
+Reported by @AlexJ-StL in #297: Google Antigravity caps MCP-server tool
+counts at 50, but jdocmunch shipped 60 tools with no way to trim them
+short of disabling the whole server. Sibling-parity gap with jcm, which
+has had `tool_profile` and `disabled_tools` since v1.78.
+
+Two new env-var-driven knobs in `server.py`:
+
+- `JDOCMUNCH_TOOL_PROFILE=core|standard|full` (default `full`).
+  - `core` (13 tools): index + the navigation/search essentials.
+  - `standard` (~50 tools): core + analysis/cross-reference tools.
+  - `full` (60 tools): everything, current behavior.
+- `JDOCMUNCH_DISABLED_TOOLS=tool1,tool2,...` removes named tools from
+  both the listed schema and the call dispatcher. Composes with
+  `tool_profile`.
+
+Filtering is enforced in `list_tools()` (schema visibility) AND
+`call_tool()` (call-time rejection) so a client that cached the schema
+gets a clear error if it invokes a disabled tool. `jdocmunch_guide`
+survives tier filtering (so a one-line CLAUDE.md keeps working at any
+tier) but honors `disabled_tools` (it's documentation, not a control
+surface) -- mirrors jcm v1.108.8's issue-#298 resolution.
+
+Antigravity users with the full munch suite can now run:
+
+```jsonc
+// per-server env vars
+"jdocmunch": { "env": { "JDOCMUNCH_TOOL_PROFILE": "core" } }
+```
+
+to fit under the 50-tool cap.
+
 ## [1.63.3] - 2026-05-13 - `jdocmunch_guide` sibling-parity tool
 
 Adds `jdocmunch_guide` -- the doc-MCP sibling of `jcodemunch_guide` (jcm

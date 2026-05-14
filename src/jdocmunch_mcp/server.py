@@ -100,9 +100,105 @@ from .tools.find_similar_sections import find_similar_sections
 server = Server("jdocmunch-mcp")
 
 
+# --------------------------------------------------------------------------- #
+# Tool profiles: tiered sets for controlling context budget.                  #
+# Mirrors jcodemunch-mcp's _TOOL_TIER_* design (issue #297).                  #
+# Config via JDOCMUNCH_TOOL_PROFILE ("core" | "standard" | "full"; default    #
+# "full"). Config via JDOCMUNCH_DISABLED_TOOLS (comma-separated tool names).  #
+# --------------------------------------------------------------------------- #
+_TOOL_TIER_CORE: frozenset[str] = frozenset({
+    # Indexing
+    "index_local", "doc_index_repo",
+    # Discovery
+    "doc_list_repos", "list_docs", "get_index_overview",
+    # Document navigation
+    "get_doc", "get_toc", "get_toc_tree",
+    # Section retrieval
+    "search_sections", "search_titles",
+    "get_section", "get_sections", "get_section_context",
+})
+
+_TOOL_TIER_STANDARD: frozenset[str] = _TOOL_TIER_CORE | frozenset({
+    # Discovery extras
+    "count_sections", "get_all_tags", "get_all_roles",
+    "list_terms", "lookup_term",
+    "list_repo_groups", "define_repo_group",
+    # Document navigation extras
+    "get_document_outline", "get_tutorial_path",
+    # Section retrieval extras
+    "describe_section", "section_neighbors", "get_section_path",
+    "get_section_excerpt", "get_section_excerpts",
+    "get_section_descendants",
+    "get_section_summary", "get_section_summaries",
+    # Cross-references & graph
+    "get_backlinks", "get_related_sections",
+    "get_broken_links", "get_orphan_sections",
+    "find_similar_sections", "get_section_diff",
+    "get_section_blast_radius", "check_section_delete_safe",
+    # Code linking
+    "find_code_examples", "link_code_to_symbols",
+    "get_undocumented_symbols",
+    # Health & metrics
+    "get_doc_coverage", "get_stale_pages", "get_wiki_stats",
+    "get_recent_changes", "get_doc_health",
+    "doc_health_radar", "diff_doc_health_radar",
+    "get_doc_pr_risk_profile",
+    # Utilities
+    "verify_index", "delete_index",
+})
+
+# full = everything (no filter applied)
+_PROFILE_TIERS: dict[str, frozenset[str] | None] = {
+    "core": _TOOL_TIER_CORE,
+    "standard": _TOOL_TIER_STANDARD,
+    "full": None,
+}
+
+# Tools that survive tier filtering (always visible in core/standard).
+_ALWAYS_PRESENT_TOOLS: frozenset[str] = frozenset({"jdocmunch_guide"})
+
+# Tools that ALSO survive disabled_tools. Empty: jdocmunch_guide is
+# documentation, not a runtime control surface, so disabled_tools honors it.
+# (Mirrors jcodemunch-mcp v1.108.8 issue #298 resolution.)
+_UNDISABLEABLE_TOOLS: frozenset[str] = frozenset()
+
+
+def _get_tool_profile() -> str:
+    """Return the effective tool_profile from env, defaulting to 'full'."""
+    raw = os.environ.get("JDOCMUNCH_TOOL_PROFILE", "full").strip().lower()
+    return raw if raw in _PROFILE_TIERS else "full"
+
+
+def _get_disabled_tools() -> frozenset[str]:
+    """Return the set of tool names disabled via JDOCMUNCH_DISABLED_TOOLS."""
+    raw = os.environ.get("JDOCMUNCH_DISABLED_TOOLS", "").strip()
+    if not raw:
+        return frozenset()
+    return frozenset(t.strip() for t in raw.split(",") if t.strip())
+
+
+def _filter_tools(tools: list[Tool]) -> list[Tool]:
+    """Apply tool_profile + disabled_tools filtering. Preserves order."""
+    profile = _get_tool_profile()
+    allowed = _PROFILE_TIERS.get(profile)
+    if allowed is not None:
+        tools = [t for t in tools if t.name in allowed or t.name in _ALWAYS_PRESENT_TOOLS]
+    disabled = _get_disabled_tools()
+    if disabled:
+        effective_disabled = disabled - _UNDISABLEABLE_TOOLS
+        if effective_disabled:
+            tools = [t for t in tools if t.name not in effective_disabled]
+    return tools
+
+
 @server.list_tools()
 async def list_tools() -> list[Tool]:
     """List all available tools."""
+    return _filter_tools(_all_tools())
+
+
+def _all_tools() -> list[Tool]:
+    """Return the unfiltered list of every tool exposed by this server."""
     return [
         Tool(
             name="index_local",
@@ -1543,6 +1639,17 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     _t0 = _time.perf_counter()
     _ok = True
     _repo = arguments.get("repo") if isinstance(arguments, dict) else None
+
+    # Honor JDOCMUNCH_DISABLED_TOOLS at call time. Tools in _UNDISABLEABLE_TOOLS
+    # are exempt (currently empty; jdocmunch_guide is intentionally disable-able).
+    _disabled_at_call = _get_disabled_tools() - _UNDISABLEABLE_TOOLS
+    if name in _disabled_at_call:
+        return [TextContent(type="text", text=json.dumps({
+            "error": (
+                f"Tool '{name}' is disabled via JDOCMUNCH_DISABLED_TOOLS. "
+                f"Remove it from the env var to re-enable."
+            )
+        }, indent=2))]
 
     try:
         if name == "index_local":
