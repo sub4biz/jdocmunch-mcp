@@ -12,11 +12,11 @@ JDOCMUNCH_OPENAI_COMPAT_BASE_URL=http://localhost:11434/v1
 JDOCMUNCH_OPENAI_COMPAT_MODEL=nomic-embed-text
 ```
 
-`JDOCMUNCH_OPENAI_COMPAT_API_KEY` is optional; it falls back to
-`OPENAI_API_KEY`, then `local` for servers that require the SDK field but do
-not validate it. The feature does not auto-detect from `OPENAI_BASE_URL` or
-from the compat base URL, so existing OpenAI and sentence-transformers behavior
-is unchanged.
+`JDOCMUNCH_OPENAI_COMPAT_API_KEY` is optional; it falls back to `local` for
+servers that require the SDK field but do not validate it. The provider does not
+read `OPENAI_API_KEY`, and the feature does not auto-detect from
+`OPENAI_BASE_URL` or from the compat base URL, so existing OpenAI and
+sentence-transformers behavior is unchanged.
 
 Cache identity includes provider, endpoint, model, and API-key prefix for query
 embedding reuse, and endpoint + model for section embedding sidecars. Switching

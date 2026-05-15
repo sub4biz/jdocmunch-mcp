@@ -118,7 +118,7 @@ def test_openai_compatible_provider_uses_configured_endpoint(monkeypatch):
     ]
 
 
-def test_openai_compatible_api_key_falls_back_to_openai_key(monkeypatch):
+def test_openai_compatible_ignores_openai_api_key(monkeypatch):
     _clear_embedding_env(monkeypatch)
     fake_openai = _install_fake_openai(monkeypatch)
     monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_BASE_URL", "http://localhost:11434/v1")
@@ -127,7 +127,7 @@ def test_openai_compatible_api_key_falls_back_to_openai_key(monkeypatch):
 
     emb_provider._OpenAICompatibleProvider()
 
-    assert fake_openai.instances[0].api_key == "sk-shared"
+    assert fake_openai.instances[0].api_key == "local"
 
 
 def test_openai_compatible_api_key_defaults_to_local(monkeypatch):

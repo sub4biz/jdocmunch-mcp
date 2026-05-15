@@ -71,11 +71,7 @@ def _openai_compat_model() -> str:
 
 
 def _openai_compat_api_key() -> str:
-    return (
-        os.environ.get("JDOCMUNCH_OPENAI_COMPAT_API_KEY")
-        or os.environ.get("OPENAI_API_KEY")
-        or "local"
-    )
+    return os.environ.get("JDOCMUNCH_OPENAI_COMPAT_API_KEY") or "local"
 
 def _sentence_transformers_available() -> bool:
     """Return True if sentence-transformers is importable."""
