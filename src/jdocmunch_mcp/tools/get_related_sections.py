@@ -71,8 +71,8 @@ def get_related_sections(
     }
     if mode in ("semantic", "both") and not index._has_embeddings():
         meta["hint"] = (
-            "Semantic neighbors require embeddings. Re-index with use_embeddings=True "
-            "or set GOOGLE_API_KEY / OPENAI_API_KEY."
+            "Semantic neighbors require embeddings. Re-index with use_embeddings=True, "
+            "set GOOGLE_API_KEY / OPENAI_API_KEY, or configure openai-compatible embeddings."
         )
 
     return {

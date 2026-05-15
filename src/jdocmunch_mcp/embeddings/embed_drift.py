@@ -114,7 +114,7 @@ def capture_canary(
     if vecs is None:
         return {
             "status": "no_provider",
-            "hint": "Set GOOGLE_API_KEY, OPENAI_API_KEY, or install sentence-transformers before capturing.",
+            "hint": "Set GOOGLE_API_KEY, OPENAI_API_KEY, configure openai-compatible embeddings, or install sentence-transformers before capturing.",
         }
 
     snapshot = {

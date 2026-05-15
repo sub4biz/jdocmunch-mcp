@@ -58,11 +58,10 @@ _OPENAI_COMPAT_PROVIDER = "openai-compatible"
 _OPENAI_COMPAT_ALIASES = {
     _OPENAI_COMPAT_PROVIDER,
     "openai_compatible",
-    "openai-compat",
 }
 
 
-def _openai_compat_base_url() -> str:
+def _openai_compat_url() -> str:
     return os.environ.get("JDOCMUNCH_OPENAI_COMPAT_URL", "").strip()
 
 
@@ -72,6 +71,7 @@ def _openai_compat_model() -> str:
 
 def _openai_compat_api_key() -> str:
     return os.environ.get("JDOCMUNCH_OPENAI_COMPAT_API_KEY") or "local"
+
 
 def _sentence_transformers_available() -> bool:
     """Return True if sentence-transformers is importable."""
@@ -168,7 +168,7 @@ class _OpenAICompatibleProvider:
     BATCH_SIZE = 100
 
     def __init__(self):
-        base_url = _openai_compat_base_url()
+        base_url = _openai_compat_url()
         model = _openai_compat_model()
         if not base_url:
             raise ValueError("No JDOCMUNCH_OPENAI_COMPAT_URL")
@@ -256,7 +256,7 @@ def _provider_signature(name: str) -> tuple:
     if name == _OPENAI_COMPAT_PROVIDER:
         return (
             name,
-            _openai_compat_base_url(),
+            _openai_compat_url(),
             _openai_compat_model(),
             _openai_compat_api_key()[:8],
         )
@@ -299,7 +299,7 @@ def _provider_identity(name: str) -> tuple[str, Optional[int]]:
     if name == "openai":
         return (_OpenAIProvider.MODEL, 1536)
     if name == _OPENAI_COMPAT_PROVIDER:
-        return (f"{_openai_compat_base_url()}::{_openai_compat_model()}", None)
+        return (f"{_openai_compat_url()}::{_openai_compat_model()}", None)
     if name == "sentence-transformers":
         return (
             os.environ.get("JDOCMUNCH_ST_MODEL", _SentenceTransformersProvider.DEFAULT_MODEL),

@@ -266,7 +266,8 @@ def index_local(
         use_ai_summaries: Whether to use AI for section summaries.
         use_embeddings: True/False/"auto". "auto" (default) enables embeddings when
                         an embedding provider is configured (GOOGLE_API_KEY,
-                        OPENAI_API_KEY, or sentence-transformers installed).
+                        OPENAI_API_KEY, explicit OpenAI-compatible config, or
+                        sentence-transformers installed).
         storage_path: Custom storage path (default: ~/.doc-index/).
         extra_ignore_patterns: Additional gitignore-style patterns to exclude.
         follow_symlinks: Whether to follow symlinks.

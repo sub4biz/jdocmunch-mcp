@@ -66,7 +66,7 @@ class _FakeSection:
 
 
 def test_get_provider_name_accepts_openai_compatible_aliases(monkeypatch):
-    for value in ("openai-compatible", "openai_compatible", "openai-compat"):
+    for value in ("openai-compatible", "openai_compatible"):
         _clear_embedding_env(monkeypatch)
         monkeypatch.setenv("JDOCMUNCH_EMBEDDING_PROVIDER", value)
         assert emb_provider.get_provider_name() == "openai-compatible"
