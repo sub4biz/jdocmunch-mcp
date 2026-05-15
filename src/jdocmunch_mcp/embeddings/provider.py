@@ -55,10 +55,6 @@ def cosine_similarity(a: list, b: list) -> float:
 # ---------------------------------------------------------------------------
 
 _OPENAI_COMPAT_PROVIDER = "openai-compatible"
-_OPENAI_COMPAT_ALIASES = {
-    _OPENAI_COMPAT_PROVIDER,
-    "openai_compatible",
-}
 
 
 def _openai_compat_url() -> str:
@@ -89,7 +85,7 @@ def get_provider_name() -> Optional[str]:
         return "gemini"
     if explicit == "openai":
         return "openai"
-    if explicit in _OPENAI_COMPAT_ALIASES:
+    if explicit in (_OPENAI_COMPAT_PROVIDER, "openai_compatible"):
         return _OPENAI_COMPAT_PROVIDER
     if explicit in ("sentence-transformers", "sentence_transformers", "local"):
         return "sentence-transformers"
@@ -161,6 +157,10 @@ class _OpenAIProvider:
                 embeddings.extend([[] for _ in batch])
         return embeddings
 
+
+# ---------------------------------------------------------------------------
+# OpenAI-compatible provider
+# ---------------------------------------------------------------------------
 
 class _OpenAICompatibleProvider:
     """Embed via a caller-supplied OpenAI-compatible embeddings endpoint."""

@@ -555,9 +555,9 @@ See `SECURITY.md` for details.
 | `GOOGLE_API_KEY`                  | Section summaries via Gemini Flash; also Gemini embeddings        | No       |
 | `OPENAI_API_KEY`                  | OpenAI embeddings (text-embedding-3-small)                        | No       |
 | `JDOCMUNCH_EMBEDDING_PROVIDER`    | Force provider: `gemini`, `openai`, `openai-compatible`, `sentence-transformers`, `none` | No |
-| `JDOCMUNCH_OPENAI_COMPAT_URL`      | OpenAI-compatible embedding endpoint URL                         | No       |
-| `JDOCMUNCH_OPENAI_COMPAT_MODEL`   | OpenAI-compatible embedding model                                 | No       |
-| `JDOCMUNCH_OPENAI_COMPAT_API_KEY` | Dedicated optional API key for OpenAI-compatible embeddings        | No       |
+| `JDOCMUNCH_OPENAI_COMPAT_URL`      | Endpoint URL for `openai-compatible` embeddings                  | No       |
+| `JDOCMUNCH_OPENAI_COMPAT_MODEL`   | Model for `openai-compatible` embeddings                          | No       |
+| `JDOCMUNCH_OPENAI_COMPAT_API_KEY` | Dedicated optional API key for `openai-compatible` embeddings     | No       |
 | `JDOCMUNCH_ST_MODEL`              | sentence-transformers model (default: `all-MiniLM-L6-v2`)        | No       |
 | `DOC_INDEX_PATH`                  | Custom cache path                                                 | No       |
 | `JDOCMUNCH_SHARE_SAVINGS`         | Set to `0` to disable anonymous community token savings reporting | No       |
