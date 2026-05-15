@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.66.0] - 2026-05-15 - OpenAI-compatible embeddings
+
+Adds an explicit `openai-compatible` embedding provider for local and
+self-hosted OpenAI-compatible embedding endpoints. The provider is opt-in
+through the existing selector:
+
+```bash
+JDOCMUNCH_EMBEDDING_PROVIDER=openai-compatible
+JDOCMUNCH_OPENAI_COMPAT_BASE_URL=http://localhost:11434/v1
+JDOCMUNCH_OPENAI_COMPAT_MODEL=nomic-embed-text
+```
+
+`JDOCMUNCH_OPENAI_COMPAT_API_KEY` is optional; it falls back to
+`OPENAI_API_KEY`, then `local` for servers that require the SDK field but do
+not validate it. The feature does not auto-detect from `OPENAI_BASE_URL` or
+from the compat base URL, so existing OpenAI and sentence-transformers behavior
+is unchanged.
+
+Cache identity includes provider, endpoint, model, and API-key prefix for query
+embedding reuse, and endpoint + model for section embedding sidecars. Switching
+between local endpoints or models invalidates stale vectors automatically.
+
+Regression coverage in `tests/test_openai_compatible_embeddings.py`.
+
 ## [1.65.0] - 2026-05-14 - prefer-newest walk order on truncation (jdoc#16)
 
 Follow-up to jdoc#15 (@LuigiNicaPRO). When the corpus exceeds `max_files`
