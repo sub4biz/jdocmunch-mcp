@@ -84,6 +84,16 @@ def test_openai_compatible_is_not_auto_detected(monkeypatch):
     assert emb_provider.should_embed("auto") is False
 
 
+def test_incomplete_explicit_openai_compatible_does_not_fall_through(monkeypatch):
+    _clear_embedding_env(monkeypatch)
+    monkeypatch.setenv("JDOCMUNCH_EMBEDDING_PROVIDER", "openai-compatible")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-real")
+    monkeypatch.setattr(emb_provider, "_sentence_transformers_available", lambda: True)
+
+    assert emb_provider.get_provider_name() is None
+    assert emb_provider.should_embed("auto") is False
+
+
 def test_should_embed_auto_requires_complete_openai_compatible_config(monkeypatch):
     _clear_embedding_env(monkeypatch)
     monkeypatch.setenv("JDOCMUNCH_EMBEDDING_PROVIDER", "openai-compatible")
@@ -161,6 +171,23 @@ def test_openai_compatible_signature_tracks_endpoint_and_model(monkeypatch):
     sig_c = emb_provider._provider_signature("openai-compatible")
 
     assert sig_a != sig_b
+    assert sig_b != sig_c
+
+
+def test_openai_compatible_signature_ignores_ambient_openai_key(monkeypatch):
+    _clear_embedding_env(monkeypatch)
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "model-a")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-real-a")
+    sig_a = emb_provider._provider_signature("openai-compatible")
+
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-real-b")
+    sig_b = emb_provider._provider_signature("openai-compatible")
+
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_API_KEY", "compat-key")
+    sig_c = emb_provider._provider_signature("openai-compatible")
+
+    assert sig_a == sig_b
     assert sig_b != sig_c
 
 
