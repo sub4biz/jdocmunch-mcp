@@ -86,7 +86,9 @@ def get_provider_name() -> Optional[str]:
     if explicit == "openai":
         return "openai"
     if explicit in (_OPENAI_COMPAT_PROVIDER, "openai_compatible"):
-        return _OPENAI_COMPAT_PROVIDER
+        if _openai_compat_url() and _openai_compat_model():
+            return _OPENAI_COMPAT_PROVIDER
+        return None
     if explicit in ("sentence-transformers", "sentence_transformers", "local"):
         return "sentence-transformers"
     if explicit == "none":

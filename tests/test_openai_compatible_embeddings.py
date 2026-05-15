@@ -69,6 +69,8 @@ def test_get_provider_name_accepts_openai_compatible_aliases(monkeypatch):
     for value in ("openai-compatible", "openai_compatible"):
         _clear_embedding_env(monkeypatch)
         monkeypatch.setenv("JDOCMUNCH_EMBEDDING_PROVIDER", value)
+        monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
+        monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "nomic-embed-text")
         assert emb_provider.get_provider_name() == "openai-compatible"
 
 
@@ -82,10 +84,15 @@ def test_openai_compatible_is_not_auto_detected(monkeypatch):
     assert emb_provider.should_embed("auto") is False
 
 
-def test_should_embed_auto_with_explicit_openai_compatible(monkeypatch):
+def test_should_embed_auto_requires_complete_openai_compatible_config(monkeypatch):
     _clear_embedding_env(monkeypatch)
     monkeypatch.setenv("JDOCMUNCH_EMBEDDING_PROVIDER", "openai-compatible")
+    assert emb_provider.should_embed("auto") is False
 
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
+    assert emb_provider.should_embed("auto") is False
+
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "nomic-embed-text")
     assert emb_provider.should_embed("auto") is True
 
 
