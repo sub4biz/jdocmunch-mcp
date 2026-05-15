@@ -114,7 +114,7 @@ def capture_canary(
     if vecs is None:
         return {
             "status": "no_provider",
-            "hint": "Set GOOGLE_API_KEY, OPENAI_API_KEY, configure openai-compatible embeddings, or install sentence-transformers before capturing.",
+            "hint": "Set GOOGLE_API_KEY, OPENAI_API_KEY, JDOCMUNCH_EMBEDDING_PROVIDER=openai-compatible with JDOCMUNCH_OPENAI_COMPAT_URL and JDOCMUNCH_OPENAI_COMPAT_MODEL, or install sentence-transformers before capturing.",
         }
 
     snapshot = {

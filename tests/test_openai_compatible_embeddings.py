@@ -84,7 +84,7 @@ def test_openai_compatible_is_not_auto_detected(monkeypatch):
     assert emb_provider.should_embed("auto") is False
 
 
-def test_incomplete_explicit_openai_compatible_does_not_fall_through(monkeypatch):
+def test_incomplete_openai_compatible_env_does_not_fall_through(monkeypatch):
     _clear_embedding_env(monkeypatch)
     monkeypatch.setenv("JDOCMUNCH_EMBEDDING_PROVIDER", "openai-compatible")
     monkeypatch.setenv("OPENAI_API_KEY", "sk-real")
@@ -94,7 +94,7 @@ def test_incomplete_explicit_openai_compatible_does_not_fall_through(monkeypatch
     assert emb_provider.should_embed("auto") is False
 
 
-def test_should_embed_auto_requires_complete_openai_compatible_config(monkeypatch):
+def test_should_embed_auto_requires_openai_compatible_url_and_model(monkeypatch):
     _clear_embedding_env(monkeypatch)
     monkeypatch.setenv("JDOCMUNCH_EMBEDDING_PROVIDER", "openai-compatible")
     assert emb_provider.should_embed("auto") is False
