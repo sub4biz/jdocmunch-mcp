@@ -314,7 +314,7 @@ All errors return:
 | `GOOGLE_API_KEY`                  | AI summarization via Gemini Flash; also Gemini embeddings            | No       |
 | `OPENAI_API_KEY`                  | OpenAI embeddings (text-embedding-3-small)                           | No       |
 | `JDOCMUNCH_EMBEDDING_PROVIDER`    | Force embedding provider: `gemini`, `openai`, `openai-compatible`, `sentence-transformers`, or `none` | No |
-| `JDOCMUNCH_OPENAI_COMPAT_BASE_URL` | OpenAI-compatible embedding endpoint base URL                       | No       |
+| `JDOCMUNCH_OPENAI_COMPAT_URL`      | OpenAI-compatible embedding endpoint URL                            | No       |
 | `JDOCMUNCH_OPENAI_COMPAT_MODEL`   | OpenAI-compatible embedding model                                    | No       |
 | `JDOCMUNCH_OPENAI_COMPAT_API_KEY` | Dedicated optional API key for OpenAI-compatible embeddings          | No       |
 | `JDOCMUNCH_ST_MODEL`              | sentence-transformers model name (default: `all-MiniLM-L6-v2`)      | No       |

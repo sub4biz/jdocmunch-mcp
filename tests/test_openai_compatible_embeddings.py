@@ -11,7 +11,7 @@ from jdocmunch_mcp.embeddings import provider as emb_provider
 
 _ENV_KEYS = (
     "JDOCMUNCH_EMBEDDING_PROVIDER",
-    "JDOCMUNCH_OPENAI_COMPAT_BASE_URL",
+    "JDOCMUNCH_OPENAI_COMPAT_URL",
     "JDOCMUNCH_OPENAI_COMPAT_MODEL",
     "JDOCMUNCH_OPENAI_COMPAT_API_KEY",
     "GOOGLE_API_KEY",
@@ -74,7 +74,7 @@ def test_get_provider_name_accepts_openai_compatible_aliases(monkeypatch):
 
 def test_openai_compatible_is_not_auto_detected(monkeypatch):
     _clear_embedding_env(monkeypatch)
-    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_BASE_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
     monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "nomic-embed-text")
     monkeypatch.setattr(emb_provider, "_sentence_transformers_available", lambda: False)
 
@@ -95,14 +95,14 @@ def test_openai_compatible_missing_config_fails_safely(monkeypatch):
 
     assert emb_provider._get_provider() is None
 
-    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_BASE_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
     assert emb_provider._get_provider() is None
 
 
 def test_openai_compatible_provider_uses_configured_endpoint(monkeypatch):
     _clear_embedding_env(monkeypatch)
     fake_openai = _install_fake_openai(monkeypatch)
-    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_BASE_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
     monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "nomic-embed-text")
     monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_API_KEY", "local-key")
 
@@ -121,7 +121,7 @@ def test_openai_compatible_provider_uses_configured_endpoint(monkeypatch):
 def test_openai_compatible_ignores_openai_api_key(monkeypatch):
     _clear_embedding_env(monkeypatch)
     fake_openai = _install_fake_openai(monkeypatch)
-    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_BASE_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
     monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "nomic-embed-text")
     monkeypatch.setenv("OPENAI_API_KEY", "sk-shared")
 
@@ -133,7 +133,7 @@ def test_openai_compatible_ignores_openai_api_key(monkeypatch):
 def test_openai_compatible_api_key_defaults_to_local(monkeypatch):
     _clear_embedding_env(monkeypatch)
     fake_openai = _install_fake_openai(monkeypatch)
-    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_BASE_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
     monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "nomic-embed-text")
 
     emb_provider._OpenAICompatibleProvider()
@@ -143,14 +143,14 @@ def test_openai_compatible_api_key_defaults_to_local(monkeypatch):
 
 def test_openai_compatible_signature_tracks_endpoint_and_model(monkeypatch):
     _clear_embedding_env(monkeypatch)
-    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_BASE_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
     monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "model-a")
     sig_a = emb_provider._provider_signature("openai-compatible")
 
     monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "model-b")
     sig_b = emb_provider._provider_signature("openai-compatible")
 
-    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_BASE_URL", "http://localhost:1234/v1")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:1234/v1")
     sig_c = emb_provider._provider_signature("openai-compatible")
 
     assert sig_a != sig_b
@@ -159,7 +159,7 @@ def test_openai_compatible_signature_tracks_endpoint_and_model(monkeypatch):
 
 def test_openai_compatible_identity_includes_endpoint_and_model(monkeypatch):
     _clear_embedding_env(monkeypatch)
-    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_BASE_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
     monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "nomic-embed-text")
 
     model, dim = emb_provider._provider_identity("openai-compatible")
@@ -171,7 +171,7 @@ def test_openai_compatible_identity_includes_endpoint_and_model(monkeypatch):
 def test_query_cache_invalidates_when_openai_compatible_model_changes(monkeypatch):
     _clear_embedding_env(monkeypatch)
     monkeypatch.setenv("JDOCMUNCH_EMBEDDING_PROVIDER", "openai-compatible")
-    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_BASE_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
     monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "model-a")
 
     class _FakeProvider:
@@ -194,7 +194,7 @@ def test_query_cache_invalidates_when_openai_compatible_model_changes(monkeypatc
 def test_section_cache_invalidates_when_openai_compatible_model_changes(tmp_path, monkeypatch):
     _clear_embedding_env(monkeypatch)
     monkeypatch.setenv("JDOCMUNCH_EMBEDDING_PROVIDER", "openai-compatible")
-    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_BASE_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
     monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "model-a")
     calls = {"n": 0}
 

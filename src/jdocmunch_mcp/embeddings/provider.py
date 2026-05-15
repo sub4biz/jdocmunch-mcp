@@ -63,7 +63,7 @@ _OPENAI_COMPAT_ALIASES = {
 
 
 def _openai_compat_base_url() -> str:
-    return os.environ.get("JDOCMUNCH_OPENAI_COMPAT_BASE_URL", "").strip()
+    return os.environ.get("JDOCMUNCH_OPENAI_COMPAT_URL", "").strip()
 
 
 def _openai_compat_model() -> str:
@@ -171,7 +171,7 @@ class _OpenAICompatibleProvider:
         base_url = _openai_compat_base_url()
         model = _openai_compat_model()
         if not base_url:
-            raise ValueError("No JDOCMUNCH_OPENAI_COMPAT_BASE_URL")
+            raise ValueError("No JDOCMUNCH_OPENAI_COMPAT_URL")
         if not model:
             raise ValueError("No JDOCMUNCH_OPENAI_COMPAT_MODEL")
 
