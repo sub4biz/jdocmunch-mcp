@@ -14,6 +14,7 @@ _ENV_KEYS = (
     "JDOCMUNCH_OPENAI_COMPAT_URL",
     "JDOCMUNCH_OPENAI_COMPAT_MODEL",
     "JDOCMUNCH_OPENAI_COMPAT_API_KEY",
+    "JDOCMUNCH_OPENAI_COMPAT_BATCH_SIZE",
     "GOOGLE_API_KEY",
     "OPENAI_API_KEY",
 )
@@ -158,20 +159,65 @@ def test_openai_compatible_api_key_defaults_to_local(monkeypatch):
     assert fake_openai.instances[0].api_key == "local"
 
 
-def test_openai_compatible_signature_tracks_endpoint_and_model(monkeypatch):
+def test_openai_compatible_default_batch_size_is_32(monkeypatch):
+    _clear_embedding_env(monkeypatch)
+    _install_fake_openai(monkeypatch)
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "nomic-embed-text")
+
+    provider = emb_provider._OpenAICompatibleProvider()
+    provider.embed_texts([str(i) for i in range(33)])
+
+    calls = provider._client.embeddings.calls
+    assert [len(call["input"]) for call in calls] == [32, 1]
+
+
+def test_openai_compatible_batch_size_override(monkeypatch):
+    _clear_embedding_env(monkeypatch)
+    _install_fake_openai(monkeypatch)
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "nomic-embed-text")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_BATCH_SIZE", "2")
+
+    provider = emb_provider._OpenAICompatibleProvider()
+    provider.embed_texts([str(i) for i in range(5)])
+
+    calls = provider._client.embeddings.calls
+    assert [len(call["input"]) for call in calls] == [2, 2, 1]
+
+
+def test_openai_compatible_invalid_batch_size_uses_default(monkeypatch):
+    _clear_embedding_env(monkeypatch)
+    _install_fake_openai(monkeypatch)
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "nomic-embed-text")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_BATCH_SIZE", "0")
+
+    provider = emb_provider._OpenAICompatibleProvider()
+    provider.embed_texts([str(i) for i in range(33)])
+
+    calls = provider._client.embeddings.calls
+    assert [len(call["input"]) for call in calls] == [32, 1]
+
+
+def test_openai_compatible_signature_tracks_endpoint_model_and_batch_size(monkeypatch):
     _clear_embedding_env(monkeypatch)
     monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
     monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "model-a")
     sig_a = emb_provider._provider_signature("openai-compatible")
 
-    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "model-b")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_BATCH_SIZE", "16")
     sig_b = emb_provider._provider_signature("openai-compatible")
 
-    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:1234/v1")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "model-b")
     sig_c = emb_provider._provider_signature("openai-compatible")
+
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:1234/v1")
+    sig_d = emb_provider._provider_signature("openai-compatible")
 
     assert sig_a != sig_b
     assert sig_b != sig_c
+    assert sig_c != sig_d
 
 
 def test_openai_compatible_signature_ignores_ambient_openai_key(monkeypatch):

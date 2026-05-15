@@ -66,6 +66,17 @@ def _openai_compat_api_key() -> str:
     return os.environ.get("JDOCMUNCH_OPENAI_COMPAT_API_KEY") or "local"
 
 
+def _openai_compat_batch_size(default: int = 32) -> int:
+    value = os.environ.get("JDOCMUNCH_OPENAI_COMPAT_BATCH_SIZE", "").strip()
+    if not value:
+        return default
+    try:
+        batch_size = int(value)
+    except ValueError:
+        return default
+    return batch_size if batch_size > 0 else default
+
+
 def _sentence_transformers_available() -> bool:
     """Return True if sentence-transformers is importable."""
     try:
@@ -164,7 +175,7 @@ class _OpenAIProvider:
 class _OpenAICompatibleProvider:
     """Embed via a caller-supplied OpenAI-compatible embeddings endpoint."""
 
-    BATCH_SIZE = 100
+    BATCH_SIZE = 32
 
     def __init__(self):
         base_url = _openai_compat_url()
@@ -177,13 +188,14 @@ class _OpenAICompatibleProvider:
         from openai import OpenAI
 
         self.model = model
+        self.batch_size = _openai_compat_batch_size(self.BATCH_SIZE)
         self._client = OpenAI(api_key=_openai_compat_api_key(), base_url=base_url)
 
     def embed_texts(self, texts: list, task_type: str = "retrieval_document") -> list:
         # task_type is ignored for OpenAI-compatible endpoints.
         embeddings = []
-        for i in range(0, len(texts), self.BATCH_SIZE):
-            batch = texts[i:i + self.BATCH_SIZE]
+        for i in range(0, len(texts), self.batch_size):
+            batch = texts[i:i + self.batch_size]
             try:
                 response = self._client.embeddings.create(model=self.model, input=batch)
                 embeddings.extend([e.embedding for e in response.data])
@@ -258,6 +270,7 @@ def _provider_signature(name: str) -> tuple:
             _openai_compat_url(),
             _openai_compat_model(),
             _openai_compat_api_key()[:8],
+            _openai_compat_batch_size(_OpenAICompatibleProvider.BATCH_SIZE),
         )
     return (name,)
 
