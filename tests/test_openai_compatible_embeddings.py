@@ -65,13 +65,13 @@ class _FakeSection:
         self.embedding = []
 
 
-def test_get_provider_name_accepts_openai_compatible_aliases(monkeypatch):
-    for value in ("openai-compatible", "openai_compatible"):
-        _clear_embedding_env(monkeypatch)
-        monkeypatch.setenv("JDOCMUNCH_EMBEDDING_PROVIDER", value)
-        monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
-        monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "nomic-embed-text")
-        assert emb_provider.get_provider_name() == "openai-compatible"
+def test_get_provider_name_accepts_openai_compatible(monkeypatch):
+    _clear_embedding_env(monkeypatch)
+    monkeypatch.setenv("JDOCMUNCH_EMBEDDING_PROVIDER", "openai-compatible")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "nomic-embed-text")
+
+    assert emb_provider.get_provider_name() == "openai-compatible"
 
 
 def test_openai_compatible_is_not_auto_detected(monkeypatch):

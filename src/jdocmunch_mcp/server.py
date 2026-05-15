@@ -202,7 +202,7 @@ def _all_tools() -> list[Tool]:
     return [
         Tool(
             name="index_local",
-            description="Index a local folder containing documentation files (.md, .txt, .rst). Parses by heading hierarchy into sections for efficient retrieval. Embeddings auto-enable when a provider is configured (GOOGLE_API_KEY, OPENAI_API_KEY, JDOCMUNCH_EMBEDDING_PROVIDER=openai-compatible + JDOCMUNCH_OPENAI_COMPAT_URL + JDOCMUNCH_OPENAI_COMPAT_MODEL, or sentence-transformers).",
+            description="Index a local folder containing documentation files (.md, .txt, .rst). Parses by heading hierarchy into sections for efficient retrieval. Embeddings auto-enable when a provider is configured (GOOGLE_API_KEY, OPENAI_API_KEY, openai-compatible + JDOCMUNCH_OPENAI_COMPAT_URL + JDOCMUNCH_OPENAI_COMPAT_MODEL, or sentence-transformers).",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -216,7 +216,7 @@ def _all_tools() -> list[Tool]:
                         "default": True
                     },
                     "use_embeddings": {
-                        "description": "Generate semantic embeddings for each section, enabling hybrid (BM25+semantic) search. true/false/\"auto\". \"auto\" (default) enables embeddings when an embedding provider is configured (GOOGLE_API_KEY, OPENAI_API_KEY, JDOCMUNCH_EMBEDDING_PROVIDER=openai-compatible + JDOCMUNCH_OPENAI_COMPAT_URL + JDOCMUNCH_OPENAI_COMPAT_MODEL, or sentence-transformers installed).",
+                        "description": "Generate semantic embeddings for each section, enabling hybrid (BM25+semantic) search. true/false/\"auto\". \"auto\" (default) enables embeddings when an embedding provider is configured (GOOGLE_API_KEY, OPENAI_API_KEY, openai-compatible + JDOCMUNCH_OPENAI_COMPAT_URL + JDOCMUNCH_OPENAI_COMPAT_MODEL, or sentence-transformers installed).",
                         "default": "auto"
                     },
                     "extra_ignore_patterns": {
@@ -265,7 +265,7 @@ def _all_tools() -> list[Tool]:
         ),
         Tool(
             name="doc_index_repo",
-            description="Index a GitHub repository's documentation. Fetches .md/.txt files, parses sections, and saves to local storage. Embeddings auto-enable when a provider is configured (GOOGLE_API_KEY, OPENAI_API_KEY, JDOCMUNCH_EMBEDDING_PROVIDER=openai-compatible + JDOCMUNCH_OPENAI_COMPAT_URL + JDOCMUNCH_OPENAI_COMPAT_MODEL, or sentence-transformers).",
+            description="Index a GitHub repository's documentation. Fetches .md/.txt files, parses sections, and saves to local storage. Embeddings auto-enable when a provider is configured (GOOGLE_API_KEY, OPENAI_API_KEY, openai-compatible + JDOCMUNCH_OPENAI_COMPAT_URL + JDOCMUNCH_OPENAI_COMPAT_MODEL, or sentence-transformers).",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -279,7 +279,7 @@ def _all_tools() -> list[Tool]:
                         "default": True
                     },
                     "use_embeddings": {
-                        "description": "Generate semantic embeddings for each section. true/false/\"auto\". \"auto\" (default) enables embeddings when an embedding provider is configured, including JDOCMUNCH_EMBEDDING_PROVIDER=openai-compatible + JDOCMUNCH_OPENAI_COMPAT_URL + JDOCMUNCH_OPENAI_COMPAT_MODEL.",
+                        "description": "Generate semantic embeddings for each section. true/false/\"auto\". \"auto\" (default) enables embeddings when an embedding provider is configured, including openai-compatible + JDOCMUNCH_OPENAI_COMPAT_URL + JDOCMUNCH_OPENAI_COMPAT_MODEL.",
                         "default": "auto"
                     },
                     "incremental": {

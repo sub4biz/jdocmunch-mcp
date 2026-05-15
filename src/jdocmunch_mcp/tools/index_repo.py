@@ -152,7 +152,7 @@ async def index_repo(
         use_ai_summaries: Whether to use AI for section summaries.
         use_embeddings: True/False/"auto". "auto" (default) enables embeddings when
                         an embedding provider is configured (GOOGLE_API_KEY,
-                        OPENAI_API_KEY, JDOCMUNCH_EMBEDDING_PROVIDER=openai-compatible
+                        OPENAI_API_KEY, openai-compatible
                         + JDOCMUNCH_OPENAI_COMPAT_URL + JDOCMUNCH_OPENAI_COMPAT_MODEL,
                         or sentence-transformers installed).
         github_token: GitHub API token (optional).

@@ -82,7 +82,7 @@ def get_provider_name() -> Optional[str]:
         return "gemini"
     if explicit == "openai":
         return "openai"
-    if explicit in ("openai-compatible", "openai_compatible"):
+    if explicit == "openai-compatible":
         if _openai_compat_url() and _openai_compat_model():
             return "openai-compatible"
         return None

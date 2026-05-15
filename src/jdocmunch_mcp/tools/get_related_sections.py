@@ -72,8 +72,8 @@ def get_related_sections(
     if mode in ("semantic", "both") and not index._has_embeddings():
         meta["hint"] = (
             "Semantic neighbors require embeddings. Re-index with use_embeddings=True, "
-            "set GOOGLE_API_KEY / OPENAI_API_KEY, or set JDOCMUNCH_EMBEDDING_PROVIDER="
-            "openai-compatible with JDOCMUNCH_OPENAI_COMPAT_URL and "
+            "set GOOGLE_API_KEY / OPENAI_API_KEY, or use openai-compatible + "
+            "JDOCMUNCH_OPENAI_COMPAT_URL + "
             "JDOCMUNCH_OPENAI_COMPAT_MODEL."
         )
 
