@@ -54,9 +54,6 @@ def cosine_similarity(a: list, b: list) -> float:
 # Provider detection
 # ---------------------------------------------------------------------------
 
-_OPENAI_COMPAT_PROVIDER = "openai-compatible"
-
-
 def _openai_compat_url() -> str:
     return os.environ.get("JDOCMUNCH_OPENAI_COMPAT_URL", "").strip()
 
@@ -85,9 +82,9 @@ def get_provider_name() -> Optional[str]:
         return "gemini"
     if explicit == "openai":
         return "openai"
-    if explicit in (_OPENAI_COMPAT_PROVIDER, "openai_compatible"):
+    if explicit in ("openai-compatible", "openai_compatible"):
         if _openai_compat_url() and _openai_compat_model():
-            return _OPENAI_COMPAT_PROVIDER
+            return "openai-compatible"
         return None
     if explicit in ("sentence-transformers", "sentence_transformers", "local"):
         return "sentence-transformers"
@@ -239,7 +236,7 @@ class _SentenceTransformersProvider:
 _PROVIDER_FACTORIES: dict = {
     "gemini": _GeminiProvider,
     "openai": _OpenAIProvider,
-    _OPENAI_COMPAT_PROVIDER: _OpenAICompatibleProvider,
+    "openai-compatible": _OpenAICompatibleProvider,
     "sentence-transformers": _SentenceTransformersProvider,
 }
 
@@ -255,7 +252,7 @@ def _provider_signature(name: str) -> tuple:
         return (name, _GeminiProvider.MODEL, os.environ.get("GOOGLE_API_KEY", "")[:8])
     if name == "openai":
         return (name, _OpenAIProvider.MODEL, os.environ.get("OPENAI_API_KEY", "")[:8])
-    if name == _OPENAI_COMPAT_PROVIDER:
+    if name == "openai-compatible":
         return (
             name,
             _openai_compat_url(),
@@ -300,7 +297,7 @@ def _provider_identity(name: str) -> tuple[str, Optional[int]]:
         return (_GeminiProvider.MODEL, 768)
     if name == "openai":
         return (_OpenAIProvider.MODEL, 1536)
-    if name == _OPENAI_COMPAT_PROVIDER:
+    if name == "openai-compatible":
         return (f"{_openai_compat_url()}::{_openai_compat_model()}", None)
     if name == "sentence-transformers":
         return (
