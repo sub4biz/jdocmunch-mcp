@@ -1,10 +1,11 @@
 """Embedding providers for semantic section search.
 
 Supports Gemini (text-embedding-004), OpenAI (text-embedding-3-small),
-and sentence-transformers (fully offline, no API key required).
+OpenAI-compatible endpoints, and sentence-transformers (fully offline,
+no API key required).
 
 Auto-detection priority (first available wins):
-    1. JDOCMUNCH_EMBEDDING_PROVIDER env var (gemini/openai/sentence-transformers/none)
+    1. JDOCMUNCH_EMBEDDING_PROVIDER env var (gemini/openai/openai-compatible/sentence-transformers/none)
     2. GOOGLE_API_KEY → Gemini
     3. OPENAI_API_KEY → OpenAI
     4. sentence-transformers installed → local offline model
@@ -53,6 +54,29 @@ def cosine_similarity(a: list, b: list) -> float:
 # Provider detection
 # ---------------------------------------------------------------------------
 
+def _openai_compat_url() -> str:
+    return os.environ.get("JDOCMUNCH_OPENAI_COMPAT_URL", "").strip()
+
+
+def _openai_compat_model() -> str:
+    return os.environ.get("JDOCMUNCH_OPENAI_COMPAT_MODEL", "").strip()
+
+
+def _openai_compat_api_key() -> str:
+    return os.environ.get("JDOCMUNCH_OPENAI_COMPAT_API_KEY") or "local"
+
+
+def _openai_compat_batch_size(default: int = 32) -> int:
+    value = os.environ.get("JDOCMUNCH_OPENAI_COMPAT_BATCH_SIZE", "").strip()
+    if not value:
+        return default
+    try:
+        batch_size = int(value)
+    except ValueError:
+        return default
+    return batch_size if batch_size > 0 else default
+
+
 def _sentence_transformers_available() -> bool:
     """Return True if sentence-transformers is importable."""
     try:
@@ -69,6 +93,10 @@ def get_provider_name() -> Optional[str]:
         return "gemini"
     if explicit == "openai":
         return "openai"
+    if explicit == "openai-compatible":
+        if _openai_compat_url() and _openai_compat_model():
+            return "openai-compatible"
+        return None
     if explicit in ("sentence-transformers", "sentence_transformers", "local"):
         return "sentence-transformers"
     if explicit == "none":
@@ -141,6 +169,42 @@ class _OpenAIProvider:
 
 
 # ---------------------------------------------------------------------------
+# OpenAI-compatible provider
+# ---------------------------------------------------------------------------
+
+class _OpenAICompatibleProvider:
+    """Embed via a caller-supplied OpenAI-compatible embeddings endpoint."""
+
+    BATCH_SIZE = 32
+
+    def __init__(self):
+        base_url = _openai_compat_url()
+        model = _openai_compat_model()
+        if not base_url:
+            raise ValueError("No JDOCMUNCH_OPENAI_COMPAT_URL")
+        if not model:
+            raise ValueError("No JDOCMUNCH_OPENAI_COMPAT_MODEL")
+
+        from openai import OpenAI
+
+        self.model = model
+        self.batch_size = _openai_compat_batch_size(self.BATCH_SIZE)
+        self._client = OpenAI(api_key=_openai_compat_api_key(), base_url=base_url)
+
+    def embed_texts(self, texts: list, task_type: str = "retrieval_document") -> list:
+        # task_type is ignored for OpenAI-compatible endpoints.
+        embeddings = []
+        for i in range(0, len(texts), self.batch_size):
+            batch = texts[i:i + self.batch_size]
+            try:
+                response = self._client.embeddings.create(model=self.model, input=batch)
+                embeddings.extend([e.embedding for e in response.data])
+            except Exception:
+                embeddings.extend([[] for _ in batch])
+        return embeddings
+
+
+# ---------------------------------------------------------------------------
 # sentence-transformers provider (fully offline)
 # ---------------------------------------------------------------------------
 
@@ -184,6 +248,7 @@ class _SentenceTransformersProvider:
 _PROVIDER_FACTORIES: dict = {
     "gemini": _GeminiProvider,
     "openai": _OpenAIProvider,
+    "openai-compatible": _OpenAICompatibleProvider,
     "sentence-transformers": _SentenceTransformersProvider,
 }
 
@@ -199,6 +264,14 @@ def _provider_signature(name: str) -> tuple:
         return (name, _GeminiProvider.MODEL, os.environ.get("GOOGLE_API_KEY", "")[:8])
     if name == "openai":
         return (name, _OpenAIProvider.MODEL, os.environ.get("OPENAI_API_KEY", "")[:8])
+    if name == "openai-compatible":
+        return (
+            name,
+            _openai_compat_url(),
+            _openai_compat_model(),
+            _openai_compat_api_key()[:8],
+            _openai_compat_batch_size(_OpenAICompatibleProvider.BATCH_SIZE),
+        )
     return (name,)
 
 
@@ -237,6 +310,8 @@ def _provider_identity(name: str) -> tuple[str, Optional[int]]:
         return (_GeminiProvider.MODEL, 768)
     if name == "openai":
         return (_OpenAIProvider.MODEL, 1536)
+    if name == "openai-compatible":
+        return (f"{_openai_compat_url()}::{_openai_compat_model()}", None)
     if name == "sentence-transformers":
         return (
             os.environ.get("JDOCMUNCH_ST_MODEL", _SentenceTransformersProvider.DEFAULT_MODEL),

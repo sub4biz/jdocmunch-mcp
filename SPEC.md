@@ -313,7 +313,11 @@ All errors return:
 | `ANTHROPIC_API_KEY`               | AI summarization via Claude Haiku (takes priority)                   | No       |
 | `GOOGLE_API_KEY`                  | AI summarization via Gemini Flash; also Gemini embeddings            | No       |
 | `OPENAI_API_KEY`                  | OpenAI embeddings (text-embedding-3-small)                           | No       |
-| `JDOCMUNCH_EMBEDDING_PROVIDER`    | Force embedding provider: `gemini`, `openai`, `sentence-transformers`, or `none` | No |
+| `JDOCMUNCH_EMBEDDING_PROVIDER`    | Force embedding provider: `gemini`, `openai`, `openai-compatible`, `sentence-transformers`, or `none` | No |
+| `JDOCMUNCH_OPENAI_COMPAT_URL`      | Endpoint URL for `openai-compatible` embeddings                      | No       |
+| `JDOCMUNCH_OPENAI_COMPAT_MODEL`   | Model for `openai-compatible` embeddings                             | No       |
+| `JDOCMUNCH_OPENAI_COMPAT_API_KEY` | Dedicated optional API key for `openai-compatible` embeddings        | No       |
+| `JDOCMUNCH_OPENAI_COMPAT_BATCH_SIZE` | Batch size for `openai-compatible` embeddings (default: `32`)      | No       |
 | `JDOCMUNCH_ST_MODEL`              | sentence-transformers model name (default: `all-MiniLM-L6-v2`)      | No       |
 | `DOC_INDEX_PATH`                  | Custom storage path (default: `~/.doc-index/`)                       | No       |
 | `JDOCMUNCH_SHARE_SAVINGS`         | Set to `0` to disable anonymous token savings reporting              | No       |
