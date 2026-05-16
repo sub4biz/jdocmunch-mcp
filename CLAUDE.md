@@ -1,6 +1,17 @@
 # jdocmunch-mcp
 
-**Version:** 1.63.3 | **Tests:** `pytest tests/ -q` (1205 passed)
+**Version:** 1.66.0 | **Tests:** `pytest tests/ -q`
+
+## v1.66.0 - openai-compatible embeddings (PR #17)
+Opt-in `openai-compatible` embedding provider for Ollama, vLLM,
+LiteLLM, llama.cpp, LM Studio, and any other OpenAI-API-shaped
+endpoint. Four env vars: `JDOCMUNCH_OPENAI_COMPAT_{URL,MODEL,API_KEY,
+BATCH_SIZE}`. Explicit-only activation (never auto-detected).
+Credential isolation: default API key is the literal `"local"`, never
+falls through to `OPENAI_API_KEY`. Cache signature includes URL +
+model + first-8 of compat key + batch size; ambient `OPENAI_API_KEY`
+is excluded. Contributed by @DevItBetter. Follow-ups: jdoc#20
+(canary-pin actual dim), jcm#302 + jdata#2 (sibling parity).
 
 ## v1.63.3 - `jdocmunch_guide` sibling-parity tool
 Adds `jdocmunch_guide` -- doc-MCP sibling of `jcodemunch_guide` (jcm since

@@ -1,5 +1,43 @@
 # Changelog
 
+## [1.66.0] - 2026-05-16 - openai-compatible embeddings (PR #17)
+
+Adds opt-in `openai-compatible` embedding provider for any
+OpenAI-API-shaped endpoint (Ollama, vLLM, LiteLLM, llama.cpp,
+LM Studio, etc.). Contributed by @DevItBetter via PR #17.
+
+Four new env vars, all opt-in, no default-behavior change:
+
+- `JDOCMUNCH_EMBEDDING_PROVIDER=openai-compatible` (required to activate)
+- `JDOCMUNCH_OPENAI_COMPAT_URL` (required when active)
+- `JDOCMUNCH_OPENAI_COMPAT_MODEL` (required when active)
+- `JDOCMUNCH_OPENAI_COMPAT_API_KEY` (optional, defaults to literal
+  `"local"`; never falls back to `OPENAI_API_KEY`)
+- `JDOCMUNCH_OPENAI_COMPAT_BATCH_SIZE` (optional, default 32)
+
+Design highlights worth preserving:
+
+1. **Explicit-only activation.** Never auto-detected. Setting only the
+   URL/model without the provider env var returns `None` from
+   `get_provider_name()`.
+2. **Credential isolation.** Default API key is the literal `"local"`,
+   never falls through to `OPENAI_API_KEY`. Closes the bug class where
+   a real OpenAI key could leak to a localhost endpoint.
+3. **Cache signature** includes URL, model, first-8 of compat key, and
+   batch size. Ambient `OPENAI_API_KEY` is excluded.
+4. **Provider identity** returns `(f"{url}::{model}", None)`; cache
+   layer relaxes the dim check when dim is unknown.
+
+Test coverage in `tests/test_openai_compatible_embeddings.py` (16 tests,
+304 lines): provider selection, missing-config handling,
+non-auto-detection, credential isolation, batch-size defaults +
+overrides + invalid fallback, signature variance, identity, and both
+query-cache and section-cache invalidation on model change.
+
+Follow-ups filed: jdoc#20 (pin actual dim via canary at provider init
+to close a silent backing-model-swap corruption window),
+jcm#302 + jdata#2 (sibling-parity ports).
+
 ## [1.65.0] - 2026-05-14 - prefer-newest walk order on truncation (jdoc#16)
 
 Follow-up to jdoc#15 (@LuigiNicaPRO). When the corpus exceeds `max_files`
