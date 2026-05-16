@@ -2116,9 +2116,21 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
 async def run_server():
     """Run the MCP server."""
+    import contextlib
     from jdocmunch_mcp import __version__
+    from jdocmunch_mcp.embeddings.provider import warmup as _embedding_warmup
     from mcp.server.stdio import stdio_server
     print(f"jdocmunch-mcp {__version__} by jgravelle · https://github.com/jgravelle/jdocmunch-mcp", file=sys.stderr)
+
+    # Warm slow-cold-loading embedding providers before stdio_server takes over
+    # stdout. Without this, sentence-transformers' first-call model load can
+    # exceed the MCP client's tool-call timeout AND leak download/progress
+    # chatter to stdout, corrupting JSON-RPC framing. Redirect stdout to stderr
+    # for the warmup so any noisy library writes land somewhere safe (jdoc#19).
+    with contextlib.redirect_stdout(sys.stderr):
+        warmed = _embedding_warmup()
+    if warmed:
+        print(f"jdocmunch-mcp: warmed embedding provider ({warmed})", file=sys.stderr)
 
     async with stdio_server() as (read_stream, write_stream):
         await server.run(

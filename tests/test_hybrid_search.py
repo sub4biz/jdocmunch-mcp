@@ -111,6 +111,66 @@ def test_should_embed_unknown_string_preserves_legacy_truthy_behavior(monkeypatc
 
 
 # ---------------------------------------------------------------------------
+# warmup() — jdoc#19: prevent stdio hang on sentence-transformers lazy-load
+# ---------------------------------------------------------------------------
+
+def test_warmup_skips_network_providers(monkeypatch):
+    """gemini/openai/openai-compatible don't need warmup — they're network calls,
+    not local model loads, so warming them just adds a startup round-trip."""
+    from jdocmunch_mcp.embeddings import provider as emb_provider
+
+    called = {"n": 0}
+
+    def fake_embed_query(_q):
+        called["n"] += 1
+        return [0.0]
+
+    monkeypatch.setattr(emb_provider, "embed_query", fake_embed_query)
+
+    for name in ("gemini", "openai", "openai-compatible", "none"):
+        monkeypatch.setattr(emb_provider, "get_provider_name", lambda n=name: n)
+        assert emb_provider.warmup() == ""
+
+    assert called["n"] == 0
+
+
+def test_warmup_returns_no_provider_when_unconfigured(monkeypatch):
+    from jdocmunch_mcp.embeddings import provider as emb_provider
+    monkeypatch.setattr(emb_provider, "get_provider_name", lambda: None)
+    assert emb_provider.warmup() == ""
+
+
+def test_warmup_invokes_embed_query_for_sentence_transformers(monkeypatch):
+    from jdocmunch_mcp.embeddings import provider as emb_provider
+
+    queries = []
+
+    def fake_embed_query(q):
+        queries.append(q)
+        return [0.1]
+
+    monkeypatch.setattr(emb_provider, "get_provider_name", lambda: "sentence-transformers")
+    monkeypatch.setattr(emb_provider, "embed_query", fake_embed_query)
+
+    result = emb_provider.warmup()
+    assert result == "sentence-transformers"
+    assert len(queries) == 1
+
+
+def test_warmup_swallows_embed_query_failure(monkeypatch):
+    """A warmup failure must not crash server startup; the real call will retry."""
+    from jdocmunch_mcp.embeddings import provider as emb_provider
+
+    def boom(_q):
+        raise RuntimeError("model load failed")
+
+    monkeypatch.setattr(emb_provider, "get_provider_name", lambda: "sentence-transformers")
+    monkeypatch.setattr(emb_provider, "embed_query", boom)
+
+    assert emb_provider.warmup() == ""
+
+
+# ---------------------------------------------------------------------------
 # Hybrid fusion: lexical-only path when no embeddings exist
 # ---------------------------------------------------------------------------
 

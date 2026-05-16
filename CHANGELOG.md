@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.66.2] - 2026-05-16 - warm sentence-transformers before stdio (jdoc#19)
+
+Patch release. Reported by @rknighton on jdoc#19.
+
+The first semantic `search_sections` call hung when sentence-transformers
+was the configured provider. The model lazy-loads on first `embed_query`,
+and that load (a) can exceed the MCP client's tool-call timeout and
+(b) writes progress/download chatter to stdout, corrupting MCP JSON-RPC
+framing. Same call worked from a direct Python entry point because
+nothing was contending for stdout.
+
+Fix: warm the active embedding provider in `run_server()` before
+entering `stdio_server()`. `provider.warmup()` is gated on provider
+type -- only sentence-transformers gets warmed (it's the only one
+with significant cold-start latency and stdout-leak risk); network
+providers (gemini, openai, openai-compatible) are skipped to avoid
+an avoidable startup round-trip. The warmup runs inside a
+`contextlib.redirect_stdout(sys.stderr)` so any noisy library writes
+land somewhere safe.
+
+Warmup failure is non-fatal: server still starts, the first real
+embed call retries cleanly.
+
+Regression coverage in `tests/test_hybrid_search.py` (4 new tests):
+network providers skip warmup, unconfigured provider skips warmup,
+sentence-transformers gets warmed, exception during warmup is
+swallowed. Full suite: 1251 passing.
+
 ## [1.66.1] - 2026-05-16 - `should_embed("false")` now parses as False (jdoc#18)
 
 Patch release. Reported by @rknighton on jdoc#18.

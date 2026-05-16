@@ -403,6 +403,33 @@ def embed_sections(
     return sections
 
 
+def warmup() -> str:
+    """Force-load the active embedding provider so its first call is hot.
+
+    Returns the provider name that was warmed, or empty string if nothing
+    was warmed (no provider configured, warmup not needed for this provider,
+    or warmup failed).
+
+    Only providers with significant first-call latency get warmed.
+    sentence-transformers lazy-loads a local model on first embed_query,
+    which (a) can hang past the MCP client's tool-call timeout, and
+    (b) can write progress chatter to stdout, corrupting MCP JSON-RPC
+    framing if it happens after stdio_server takes over.
+
+    Network providers (gemini, openai, openai-compatible) are first-call-fast
+    enough that warmup is unnecessary; warming them would add an avoidable
+    network round-trip to startup.
+    """
+    name = get_provider_name()
+    if name != "sentence-transformers":
+        return ""
+    try:
+        embed_query("jdocmunch warmup")
+        return name
+    except Exception:
+        return ""
+
+
 def should_embed(flag) -> bool:
     """Resolve a use_embeddings flag (bool, 'auto', or string boolean) to a concrete bool.
 

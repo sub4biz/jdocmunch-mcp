@@ -1,6 +1,16 @@
 # jdocmunch-mcp
 
-**Version:** 1.66.1 | **Tests:** `pytest tests/ -q` (1247 passed)
+**Version:** 1.66.2 | **Tests:** `pytest tests/ -q` (1251 passed)
+
+## v1.66.2 - warm sentence-transformers before stdio (jdoc#19)
+Reported by @rknighton. First semantic `search_sections` hung when
+sentence-transformers was configured: lazy model load exceeded MCP
+timeouts and leaked progress chatter to stdout, corrupting JSON-RPC
+framing. Fix: `provider.warmup()` (provider-type-gated; only
+sentence-transformers needs warming) runs in `run_server()` before
+`stdio_server()` takes over, wrapped in `redirect_stdout(sys.stderr)`
+so noisy library writes land safely. Network providers skip warmup
+to avoid avoidable startup round-trips. Warmup failure is non-fatal.
 
 ## v1.66.1 - `should_embed("false")` parses as False (jdoc#18)
 Reported by @rknighton. `should_embed()` ran any non-empty string
