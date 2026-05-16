@@ -1,6 +1,19 @@
 # jdocmunch-mcp
 
-**Version:** 1.66.2 | **Tests:** `pytest tests/ -q` (1251 passed)
+**Version:** 1.66.3 | **Tests:** `pytest tests/ -q` (1254 passed)
+
+## v1.66.3 - openai-compatible: probe actual dim at init (jdoc#20)
+Hardens v1.66.0's openai-compatible provider. Backing-model swap
+behind the same URL/model env vars (e.g. Ollama retagging) used to
+silently mix vectors of different dims in the on-disk cache because
+`_provider_identity` returned `dim=None`. Fix:
+`_OpenAICompatibleProvider.__init__` now probes the endpoint with a
+one-token canary and stores the discovered dim on `self.dim`;
+`_provider_identity` reads it from the cached singleton. Cache layer's
+strict dim check now engages; a model swap forces clean re-embed.
+Probe failure is non-fatal (dim falls back to None → wildcard
+behavior of v1.66.0). When jcm/jdata pick up openai-compatible (#302,
+jdata#2), this pattern should ship there too.
 
 ## v1.66.2 - warm sentence-transformers before stdio (jdoc#19)
 Reported by @rknighton. First semantic `search_sections` hung when

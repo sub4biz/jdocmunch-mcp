@@ -131,8 +131,10 @@ def test_openai_compatible_provider_uses_configured_endpoint(monkeypatch):
     instance = fake_openai.instances[0]
     assert instance.api_key == "local-key"
     assert instance.base_url == "http://localhost:11434/v1"
+    # First call is the dim-probe canary (jdoc#20); then the real embed_texts.
     assert instance.embeddings.calls == [
-        {"model": "nomic-embed-text", "input": ["alpha", "beta"]}
+        {"model": "nomic-embed-text", "input": ["."]},
+        {"model": "nomic-embed-text", "input": ["alpha", "beta"]},
     ]
 
 
@@ -168,8 +170,9 @@ def test_openai_compatible_default_batch_size_is_32(monkeypatch):
     provider = emb_provider._OpenAICompatibleProvider()
     provider.embed_texts([str(i) for i in range(33)])
 
+    # Skip calls[0] (the dim-probe canary from __init__) and assert batch shape.
     calls = provider._client.embeddings.calls
-    assert [len(call["input"]) for call in calls] == [32, 1]
+    assert [len(call["input"]) for call in calls[1:]] == [32, 1]
 
 
 def test_openai_compatible_batch_size_override(monkeypatch):
@@ -182,8 +185,9 @@ def test_openai_compatible_batch_size_override(monkeypatch):
     provider = emb_provider._OpenAICompatibleProvider()
     provider.embed_texts([str(i) for i in range(5)])
 
+    # Skip calls[0] (the dim-probe canary from __init__).
     calls = provider._client.embeddings.calls
-    assert [len(call["input"]) for call in calls] == [2, 2, 1]
+    assert [len(call["input"]) for call in calls[1:]] == [2, 2, 1]
 
 
 def test_openai_compatible_invalid_batch_size_uses_default(monkeypatch):
@@ -196,8 +200,9 @@ def test_openai_compatible_invalid_batch_size_uses_default(monkeypatch):
     provider = emb_provider._OpenAICompatibleProvider()
     provider.embed_texts([str(i) for i in range(33)])
 
+    # Skip calls[0] (the dim-probe canary from __init__).
     calls = provider._client.embeddings.calls
-    assert [len(call["input"]) for call in calls] == [32, 1]
+    assert [len(call["input"]) for call in calls[1:]] == [32, 1]
 
 
 def test_openai_compatible_signature_tracks_endpoint_model_and_batch_size(monkeypatch):
@@ -238,6 +243,8 @@ def test_openai_compatible_signature_ignores_ambient_openai_key(monkeypatch):
 
 
 def test_openai_compatible_identity_includes_endpoint_and_model(monkeypatch):
+    # No instance constructed → dim falls back to None (cache wildcard).
+    # Preserves pre-jdoc#20 behavior for the cold path.
     _clear_embedding_env(monkeypatch)
     monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
     monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "nomic-embed-text")
@@ -246,6 +253,67 @@ def test_openai_compatible_identity_includes_endpoint_and_model(monkeypatch):
 
     assert model == "http://localhost:11434/v1::nomic-embed-text"
     assert dim is None
+
+
+# Regression: jdoc#20 — probe actual dim at __init__ so a backing-model swap
+# behind the same URL/model env vars can't silently mix vectors of different
+# dims in the on-disk cache.
+def test_openai_compatible_probe_discovers_actual_dim(monkeypatch):
+    _clear_embedding_env(monkeypatch)
+    _install_fake_openai(monkeypatch)
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "nomic-embed-text")
+
+    provider = emb_provider._OpenAICompatibleProvider()
+    # _FakeEmbeddings returns 2-float embeddings per input, so probe → dim=2.
+    assert provider.dim == 2
+    # And probe is the first call recorded on the fake client.
+    assert provider._client.embeddings.calls[0] == {
+        "model": "nomic-embed-text",
+        "input": ["."],
+    }
+
+
+def test_openai_compatible_probe_failure_sets_dim_none(monkeypatch):
+    """Probe failure must not crash provider construction; dim falls back to
+    None so the cache layer keeps its wildcard-dim behavior."""
+    _clear_embedding_env(monkeypatch)
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "nomic-embed-text")
+
+    class _FailingEmbeddings:
+        def create(self, model, input):
+            raise RuntimeError("endpoint down")
+
+    class _FailingOpenAI:
+        def __init__(self, api_key=None, base_url=None):
+            self.api_key = api_key
+            self.base_url = base_url
+            self.embeddings = _FailingEmbeddings()
+
+    module = types.ModuleType("openai")
+    module.OpenAI = _FailingOpenAI
+    monkeypatch.setitem(sys.modules, "openai", module)
+
+    provider = emb_provider._OpenAICompatibleProvider()
+    assert provider.dim is None
+
+
+def test_openai_compatible_identity_uses_probed_dim_when_instance_cached(monkeypatch):
+    """When the provider singleton has been constructed, _provider_identity
+    reads the probed dim from it."""
+    _clear_embedding_env(monkeypatch)
+    _install_fake_openai(monkeypatch)
+    monkeypatch.setenv("JDOCMUNCH_EMBEDDING_PROVIDER", "openai-compatible")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("JDOCMUNCH_OPENAI_COMPAT_MODEL", "nomic-embed-text")
+
+    inst = emb_provider._get_provider()
+    assert inst is not None
+
+    model, dim = emb_provider._provider_identity("openai-compatible")
+    assert model == "http://localhost:11434/v1::nomic-embed-text"
+    assert dim == 2
 
 
 def test_query_cache_invalidates_when_openai_compatible_model_changes(monkeypatch):

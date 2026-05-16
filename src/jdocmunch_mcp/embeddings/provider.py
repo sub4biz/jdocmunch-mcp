@@ -190,6 +190,26 @@ class _OpenAICompatibleProvider:
         self.model = model
         self.batch_size = _openai_compat_batch_size(self.BATCH_SIZE)
         self._client = OpenAI(api_key=_openai_compat_api_key(), base_url=base_url)
+        self.dim = self._probe_dim()
+
+    def _probe_dim(self) -> Optional[int]:
+        """Discover the endpoint's actual embedding dim with a one-token canary.
+
+        Closes the silent-corruption window where a backing-model swap behind
+        the same URL/model env vars (e.g. retagging an Ollama model) would mix
+        vectors of different dims in the on-disk cache (jdoc#20).
+
+        Failure is non-fatal: returns None and the cache layer falls back to
+        its wildcard-dim behavior (pre-v1.66.3 semantics). Network outage,
+        misbehaved endpoint, or any other probe error degrades gracefully.
+        """
+        try:
+            response = self._client.embeddings.create(model=self.model, input=["."])
+            vec = response.data[0].embedding
+            n = len(vec)
+            return n if n > 0 else None
+        except Exception:
+            return None
 
     def embed_texts(self, texts: list, task_type: str = "retrieval_document") -> list:
         # task_type is ignored for OpenAI-compatible endpoints.
@@ -311,7 +331,12 @@ def _provider_identity(name: str) -> tuple[str, Optional[int]]:
     if name == "openai":
         return (_OpenAIProvider.MODEL, 1536)
     if name == "openai-compatible":
-        return (f"{_openai_compat_url()}::{_openai_compat_model()}", None)
+        # Read dim from the cached provider instance (probed once at __init__).
+        # Falls back to None when no instance is constructed yet — the cache
+        # layer treats dim=None as a wildcard, preserving v1.66.0 behavior.
+        inst = _PROVIDER_CACHE.get(_provider_signature(name))
+        dim = getattr(inst, "dim", None) if inst is not None else None
+        return (f"{_openai_compat_url()}::{_openai_compat_model()}", dim)
     if name == "sentence-transformers":
         return (
             os.environ.get("JDOCMUNCH_ST_MODEL", _SentenceTransformersProvider.DEFAULT_MODEL),

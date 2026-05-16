@@ -1,5 +1,57 @@
 # Changelog
 
+## [1.66.3] - 2026-05-16 - openai-compatible: probe actual dim at init (jdoc#20)
+
+Patch release. Hardens the openai-compatible provider added in v1.66.0.
+
+## The silent-corruption window
+
+`_OpenAICompatibleProvider` returned `(f"{url}::{model}", None)` from
+`_provider_identity()` because the embedding dim was unknown without
+calling the endpoint. The on-disk cache (`embeddings/cache.py`) handles
+`dim=None` by relaxing the strict dim check to a wildcard.
+
+That composes correctly when the backing model stays put. But if a user
+keeps the URL/model env vars constant and swaps the backing model behind
+the endpoint -- a realistic Ollama scenario, retagging
+`nomic-embed-text` to point at `all-minilm` -- the cache identity still
+matches, and old 768-dim vectors get mixed with fresh 384-dim vectors.
+Downstream cosine math either crashes on shape mismatch or silently
+returns garbage similarity scores.
+
+## The fix
+
+`_OpenAICompatibleProvider.__init__` now embeds a one-token canary at
+construction time to discover the endpoint's actual embedding dim, and
+stores it on `self.dim`. `_provider_identity("openai-compatible")` reads
+that dim out of the cached provider singleton. The cache layer's strict
+dim check now engages and a silent backing-model swap forces a clean
+re-embed.
+
+Probe failure is non-fatal: `self.dim` stays `None`, the cache layer
+falls back to its wildcard-dim behavior (v1.66.0 semantics). Network
+outage, misbehaved endpoint, or any other probe error degrades
+gracefully.
+
+Cost: one extra round-trip on provider init (per process), once per
+session. Cheap.
+
+## Tests
+
+3 new regression tests in `tests/test_openai_compatible_embeddings.py`:
+probe-discovers-actual-dim, probe-failure-sets-dim-none, and
+identity-uses-probed-dim-when-instance-cached. The four existing tests
+that assert on the fake client's `.calls` list were updated to account
+for the probe as the first recorded call (skipping `calls[0]` or
+asserting the probe explicitly).
+
+Full suite: 1254 passing.
+
+## Cross-suite
+
+When jcm and jdata pick up the openai-compatible provider (jcm#302,
+jdata#2), the same probe-at-init pattern should ship in those ports.
+
 ## [1.66.2] - 2026-05-16 - warm sentence-transformers before stdio (jdoc#19)
 
 Patch release. Reported by @rknighton on jdoc#19.
