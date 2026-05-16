@@ -1,6 +1,16 @@
 # jdocmunch-mcp
 
-**Version:** 1.66.0 | **Tests:** `pytest tests/ -q`
+**Version:** 1.66.1 | **Tests:** `pytest tests/ -q` (1247 passed)
+
+## v1.66.1 - `should_embed("false")` parses as False (jdoc#18)
+Reported by @rknighton. `should_embed()` ran any non-empty string
+through `bool()`, so `use_embeddings="false"` enabled embeddings.
+MCP tool inputs hit this whenever a client sent the flag as a JSON
+string. Fix: recognise common string booleans before the bool()
+fallback (`"true"/"false"`, `"1"/"0"`, `"yes"/"no"`, `"on"/"off"`,
+`"t"/"f"`, `"y"/"n"`, case-insensitive, whitespace-trimmed).
+Unknown strings still fall through to `bool()` so 1.x compat holds
+(`"flase"` typo remains truthy as it did before).
 
 ## v1.66.0 - openai-compatible embeddings (PR #17)
 Opt-in `openai-compatible` embedding provider for Ollama, vLLM,

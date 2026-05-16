@@ -404,12 +404,23 @@ def embed_sections(
 
 
 def should_embed(flag) -> bool:
-    """Resolve a use_embeddings flag (bool or 'auto') to a concrete bool.
+    """Resolve a use_embeddings flag (bool, 'auto', or string boolean) to a concrete bool.
 
     'auto' → True when an embedding provider is configured, else False.
+
+    Recognises common string booleans (case-insensitive, whitespace-trimmed):
+    'true'/'false', '1'/'0', 'yes'/'no', 'on'/'off', 't'/'f', 'y'/'n'.
+    Unknown strings fall through to bool(flag) so previously-truthy strings
+    keep their behavior (1.x compat).
     """
-    if isinstance(flag, str) and flag.lower() == "auto":
-        return get_provider_name() is not None
+    if isinstance(flag, str):
+        s = flag.strip().lower()
+        if s == "auto":
+            return get_provider_name() is not None
+        if s in ("true", "1", "yes", "on", "y", "t"):
+            return True
+        if s in ("false", "0", "no", "off", "n", "f", ""):
+            return False
     return bool(flag)
 
 

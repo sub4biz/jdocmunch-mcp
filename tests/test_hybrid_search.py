@@ -85,6 +85,31 @@ def test_should_embed_auto_case_insensitive(monkeypatch):
     assert should_embed("Auto") is False
 
 
+# Regression: jdoc#18 — non-empty string was truthy, so "false" enabled embeddings.
+def test_should_embed_parses_string_false_as_false(monkeypatch):
+    monkeypatch.setenv("JDOCMUNCH_EMBEDDING_PROVIDER", "sentence-transformers")
+    assert should_embed("false") is False
+
+
+def test_should_embed_parses_common_string_booleans(monkeypatch):
+    monkeypatch.setenv("JDOCMUNCH_EMBEDDING_PROVIDER", "sentence-transformers")
+
+    for truthy in ("true", "1", "yes", "on", "t", "y", "TRUE", "Yes", " true "):
+        assert should_embed(truthy) is True, f"{truthy!r} should be True"
+
+    for falsy in ("false", "0", "no", "off", "f", "n", "FALSE", "No", " false ", ""):
+        assert should_embed(falsy) is False, f"{falsy!r} should be False"
+
+
+def test_should_embed_unknown_string_preserves_legacy_truthy_behavior(monkeypatch):
+    # 1.x compat: an unrecognised non-empty string remains truthy (matches
+    # pre-1.66.1 behavior). Only the known false-y strings flip; typos like
+    # "flase" still enable embeddings rather than silently disabling them.
+    monkeypatch.setenv("JDOCMUNCH_EMBEDDING_PROVIDER", "sentence-transformers")
+    assert should_embed("flase") is True
+    assert should_embed("enabled") is True
+
+
 # ---------------------------------------------------------------------------
 # Hybrid fusion: lexical-only path when no embeddings exist
 # ---------------------------------------------------------------------------

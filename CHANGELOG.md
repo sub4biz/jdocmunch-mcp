@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.66.1] - 2026-05-16 - `should_embed("false")` now parses as False (jdoc#18)
+
+Patch release. Reported by @rknighton on jdoc#18.
+
+`should_embed(flag)` resolved any non-empty string via `bool(flag)`, so
+`use_embeddings="false"` evaluated to `True` and silently turned
+embeddings on. MCP tool inputs that arrive over the wire as JSON strings
+(`"false"`, `"0"`, `"no"`) all hit this path.
+
+Fix: recognise common string booleans (case-insensitive, whitespace-
+trimmed) before the `bool()` fallback. Recognised truthy: `"true"`,
+`"1"`, `"yes"`, `"on"`, `"t"`, `"y"`. Recognised falsy: `"false"`,
+`"0"`, `"no"`, `"off"`, `"f"`, `"n"`, `""`. `"auto"` behavior preserved.
+
+Unknown strings still fall through to `bool(flag)` to preserve 1.x
+compatibility: a typo like `"flase"` remains truthy as it did before,
+rather than silently disabling embeddings. The contract is "we
+recognise the obvious cases; we don't change behavior for inputs we
+don't recognise."
+
+Regression coverage in `tests/test_hybrid_search.py` (3 new tests, 19
+total in that file). Full suite: 1247 passing.
+
 ## [1.66.0] - 2026-05-16 - openai-compatible embeddings (PR #17)
 
 Adds opt-in `openai-compatible` embedding provider for any
