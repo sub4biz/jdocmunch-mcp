@@ -1,6 +1,6 @@
 <!-- mcp-name: io.github.jgravelle/jdocmunch-mcp -->
 
-## Stop Feeding Documentation Trees to Your AI
+## You're Wasting Tokens... That Stops NOW
 
 Most AI agents still explore documentation the expensive way:
 
